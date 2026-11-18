@@ -24,12 +24,10 @@ search.addEventListener('input', () => {
       data.results.forEach(person => {
         const button = document.createElement('button'); button.type = 'button'; button.className = 'result';
         const name = document.createElement('strong'); name.textContent = person.name;
-        const organization = document.createElement('span'); organization.textContent = person.organization || 'ไม่ระบุสังกัด';
-        button.append(name, organization);
+        button.append(name);
         button.addEventListener('click', () => {
           chosenPerson = person;
           document.querySelector('#selected-name').textContent = person.name;
-          document.querySelector('#selected-organization').textContent = person.organization || 'ไม่ระบุสังกัด';
           showTotal(person.total); selected.hidden = false; form.hidden = false; form.reset(); results.replaceChildren(); status.textContent = '';
         });
         results.append(button);
@@ -209,11 +207,9 @@ progressSearch.addEventListener('input', () => {
       data.results.forEach(person => {
         const button = document.createElement('button'); button.type = 'button'; button.className = 'result';
         const name = document.createElement('strong'); name.textContent = person.name;
-        const organization = document.createElement('span'); organization.textContent = person.organization || 'ไม่ระบุสังกัด';
-        button.append(name, organization);
+        button.append(name);
         button.addEventListener('click', () => {
           document.querySelector('#progress-name').textContent = person.name;
-          document.querySelector('#progress-organization').textContent = person.organization || 'ไม่ระบุสังกัด';
           document.querySelector('#progress-total').textContent = Number.isFinite(person.total) ? `${person.total.toLocaleString('th-TH', {maximumFractionDigits: 2})} กม.` : 'ไม่สามารถแสดงระยะสะสมได้';
           progressResults.replaceChildren(); progressSelected.hidden = false; progressStatus.textContent = '';
         });
@@ -222,3 +218,4 @@ progressSearch.addEventListener('input', () => {
     } catch (error) { if (id === progressRequest) progressStatus.textContent = 'ค้นหาไม่สำเร็จ กรุณาตรวจสอบการเชื่อมต่อแล้วลองอีกครั้ง'; }
   }, 300);
 });
+
