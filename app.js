@@ -219,3 +219,19 @@ progressSearch.addEventListener('input', () => {
   }, 300);
 });
 
+
+const teamToggle = document.querySelector('#team-toggle');
+const heroEyebrow = document.querySelector('#hero-eyebrow');
+const heroTitle = document.querySelector('#hero-title');
+const heroLead = document.querySelector('#hero-lead');
+const defaultHeroTitle = heroTitle.innerHTML;
+teamToggle.addEventListener('click', event => {
+  event.preventDefault();
+  const team = teamToggle.getAttribute('aria-pressed') !== 'true';
+  teamToggle.setAttribute('aria-pressed', String(team));
+  teamToggle.textContent = team ? 'แบบบุคคล' : 'แบบทีม';
+  heroEyebrow.textContent = team ? "LET'S PLAY TOGETHER" : 'LET’S RUN TOGETHER';
+  if (team) heroTitle.textContent = 'เผา 70,000 kcal';
+  else heroTitle.innerHTML = defaultHeroTitle;
+  heroLead.textContent = team ? 'บันทึก kcal ที่ใช้ทั้งวัน' : 'บันทึกระยะเดิน–วิ่ง แล้วสะสมทุกกิโลเมตรไปด้วยกัน';
+});
