@@ -42,6 +42,7 @@ form.addEventListener('submit', async event => {
   if (!chosenPerson || !form.reportValidity()) return;
   const button = form.querySelector('button'), distance = Number(form.elements.distance.value);
   button.disabled = true; search.disabled = true; saveStatus.textContent = 'กำลังบันทึก…';
+  let phase = 'prepare';
   try {
     const body = new URLSearchParams({name: chosenPerson.name, distance: String(distance)});
     if (screenshot.files.length) {
@@ -51,10 +52,25 @@ form.addEventListener('submit', async event => {
       saveStatus.textContent = 'กำลังบีบอัดรูปและบันทึก…';
       body.set('photo', await compressPhoto(screenshot.files[0]));
     }
-    const response = await fetch(window.SCRIPT_URL, {method: 'POST', body}); const data = await response.json();
-    if (!response.ok || !data.ok || (screenshot.files.length && !data.photoSaved)) throw new Error('Save failed');
+    phase = 'sent';
+    const response = await fetch(window.SCRIPT_URL, {method: 'POST', body});
+    const data = await response.json();
+    if (!response.ok || !data.ok) {
+      const messages = {validate: 'ข้อมูลหรือรูปภาพไม่ถูกต้อง', employee: 'ไม่พบชื่อในชีต Employee', sheet: 'ตรวจสอบชีต MT_70 และหัวข้อคอลัมน์ D', image: 'ไฟล์รูปไม่ถูกต้อง', drive: 'บันทึกรูปใน Google Drive ไม่สำเร็จ ตรวจสอบสิทธิ์โฟลเดอร์และพื้นที่จัดเก็บ', write: 'บันทึกข้อมูลในชีตไม่สำเร็จ', total: 'บันทึกข้อมูลแล้ว แต่คำนวณระยะสะสมไม่สำเร็จ โปรดตรวจสอบชีตก่อนลองอีกครั้ง'};
+      const explanation = messages[data.stage] || 'Apps Script ไม่สามารถบันทึกข้อมูลได้ (โปรดอัปเดต Apps Script ให้เป็นเวอร์ชันล่าสุดเพื่อดูสาเหตุ)';
+      saveStatus.textContent = 'บันทึกไม่สำเร็จ: ' + explanation + (data.stage ? ' [' + data.stage + ']' : '');
+      return;
+    }
+    if (screenshot.files.length && !data.photoSaved) { saveStatus.textContent = 'ไม่พบการยืนยันว่าบันทึกรูปสำเร็จ กรุณาตรวจสอบชีตและ Drive ก่อนลองอีกครั้ง'; return; }
     form.reset(); resetPhoto(); showTotal(data.total); saveStatus.textContent = 'บันทึกระยะทางเรียบร้อยแล้ว';
-  } catch (error) { saveStatus.textContent = 'ไม่สามารถยืนยันการบันทึกได้ กรุณาตรวจสอบข้อมูลในชีตก่อนลองอีกครั้ง เพื่อป้องกันการบันทึกซ้ำ'; }
+  } catch (error) {
+    if (phase === 'prepare') {
+      const details = {'Invalid image': 'ไฟล์รูปไม่ถูกต้องหรือมีขนาดเกิน 15 MB', 'Image too large': 'รูปหลังบีบอัดยังมีขนาดใหญ่เกินไป', 'Canvas unavailable': 'อุปกรณ์ไม่รองรับการประมวลผลรูป'};
+      saveStatus.textContent = 'เตรียมข้อมูลไม่สำเร็จ: ' + (details[error.message] || 'ตรวจสอบรูปภาพและการเชื่อมต่ออินเทอร์เน็ต');
+    } else {
+      saveStatus.textContent = 'ไม่สามารถรับผลจากระบบบันทึกได้ (การเชื่อมต่อขัดข้องหรือผลตอบกลับผิดรูปแบบ) กรุณาตรวจสอบข้อมูลในชีตและ Drive ก่อนลองอีกครั้ง เพื่อป้องกันข้อมูลซ้ำ';
+    }
+  }
   finally { button.disabled = false; search.disabled = false; }
 });
 
@@ -148,6 +164,7 @@ screenshot.addEventListener('change', async () => {
     if (job === imageJob) ocrStatus.textContent = 'อ่านภาพไม่สำเร็จ กรุณาตรวจสอบอินเทอร์เน็ตหรือกรอกระยะทางด้วยตนเอง';
   } finally { if (worker) await worker.terminate(); }
 });
+
 
 
 
