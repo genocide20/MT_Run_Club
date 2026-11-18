@@ -44,8 +44,15 @@ form.addEventListener('submit', async event => {
   button.disabled = true; search.disabled = true; saveStatus.textContent = 'กำลังบันทึก…';
   try {
     const body = new URLSearchParams({name: chosenPerson.name, distance: String(distance)});
+    if (screenshot.files.length) {
+      const checkUrl = new URL(window.SCRIPT_URL); checkUrl.searchParams.set('capability', 'photo-upload');
+      const capability = await (await fetch(checkUrl)).json();
+      if (!capability.photoUpload) { saveStatus.textContent = 'ยังไม่ได้อัปเดต Google Apps Script สำหรับบันทึกรูป กรุณาติดต่อผู้ดูแล'; return; }
+      saveStatus.textContent = 'กำลังบีบอัดรูปและบันทึก…';
+      body.set('photo', await compressPhoto(screenshot.files[0]));
+    }
     const response = await fetch(window.SCRIPT_URL, {method: 'POST', body}); const data = await response.json();
-    if (!response.ok || !data.ok) throw new Error('Save failed');
+    if (!response.ok || !data.ok || (screenshot.files.length && !data.photoSaved)) throw new Error('Save failed');
     form.reset(); resetPhoto(); showTotal(data.total); saveStatus.textContent = 'บันทึกระยะทางเรียบร้อยแล้ว';
   } catch (error) { saveStatus.textContent = 'ไม่สามารถยืนยันการบันทึกได้ กรุณาตรวจสอบข้อมูลในชีตก่อนลองอีกครั้ง เพื่อป้องกันการบันทึกซ้ำ'; }
   finally { button.disabled = false; search.disabled = false; }
@@ -58,6 +65,26 @@ const ocrStatus = document.querySelector('#ocr-status');
 let imageUrl = null;
 let imageJob = 0;
 let ocrLibrary;
+async function compressPhoto(file) {
+  if (!file.type.startsWith('image/') || file.size > 15 * 1024 * 1024) throw new Error('Invalid image');
+  const url = URL.createObjectURL(file);
+  try {
+    const img = new Image();
+    img.src = url;
+    await img.decode();
+    const scale = Math.min(1, 1600 / Math.max(img.naturalWidth, img.naturalHeight));
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.max(1, Math.round(img.naturalWidth * scale));
+    canvas.height = Math.max(1, Math.round(img.naturalHeight * scale));
+    const ctx = canvas.getContext('2d');
+    if (!ctx) throw new Error('Canvas unavailable');
+    ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+    const data = canvas.toDataURL('image/jpeg', 0.8);
+    if (!data.startsWith('data:image/jpeg;base64,') || data.length > 2800000) throw new Error('Image too large');
+    return data.slice(data.indexOf(',') + 1);
+  } finally { URL.revokeObjectURL(url); }
+}
 function resetPhoto() {
   imageJob++;
   screenshot.value = '';
@@ -121,6 +148,7 @@ screenshot.addEventListener('change', async () => {
     if (job === imageJob) ocrStatus.textContent = 'อ่านภาพไม่สำเร็จ กรุณาตรวจสอบอินเทอร์เน็ตหรือกรอกระยะทางด้วยตนเอง';
   } finally { if (worker) await worker.terminate(); }
 });
+
 
 
 
