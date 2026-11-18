@@ -25,3 +25,5 @@
   #save-status { font-size: 14px; line-height: 1.5; }
   .footer { margin-top: 34px; }
 }
+
+.photo-section{margin-top:20px;padding:16px;border:1px solid #d6dfd6;border-radius:10px;background:#f9fbf5}.photo-section label{margin:0 0 10px}.photo-section input[type=file]{padding:10px;background:#fff;max-width:100%;font-size:14px}.photo-section input::file-selector-button{background:#e3efd8;color:#183f31;border:0;border-radius:6px;padding:8px 12px;font:inherit;font-weight:700;margin-right:10px}.photo-hint{font-size:13px;line-height:1.5;color:#657a6e;margin:8px 0}.photo-section img{display:block;max-width:100%;max-height:260px;border-radius:8px;margin-top:12px;object-fit:contain}.photo-section img[hidden]{display:none}#ocr-status{font-size:14px;line-height:1.5;color:#285d43;margin:8px 0 0}#ocr-status:empty{display:none}

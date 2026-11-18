@@ -10,7 +10,7 @@ function showTotal(value) { total.textContent = Number.isFinite(value) ? `ระ
 search.addEventListener('input', () => {
   clearTimeout(timer);
   const id = ++requestId, query = search.value.trim();
-  results.replaceChildren(); selected.hidden = true; form.hidden = true; chosenPerson = null; saveStatus.textContent = '';
+  results.replaceChildren(); selected.hidden = true; form.hidden = true; chosenPerson = null; saveStatus.textContent = ''; resetPhoto();
   if (!query) { status.textContent = ''; return; }
   if (!window.SCRIPT_URL) { status.textContent = 'ยังไม่ได้ตั้งค่าการเชื่อมต่อ Google Sheets กรุณาติดต่อผู้ดูแล'; return; }
   status.textContent = 'กำลังค้นหา…';
@@ -46,7 +46,78 @@ form.addEventListener('submit', async event => {
     const body = new URLSearchParams({name: chosenPerson.name, distance: String(distance)});
     const response = await fetch(window.SCRIPT_URL, {method: 'POST', body}); const data = await response.json();
     if (!response.ok || !data.ok) throw new Error('Save failed');
-    form.reset(); showTotal(data.total); saveStatus.textContent = 'บันทึกระยะทางเรียบร้อยแล้ว';
+    form.reset(); resetPhoto(); showTotal(data.total); saveStatus.textContent = 'บันทึกระยะทางเรียบร้อยแล้ว';
   } catch (error) { saveStatus.textContent = 'ไม่สามารถยืนยันการบันทึกได้ กรุณาตรวจสอบข้อมูลในชีตก่อนลองอีกครั้ง เพื่อป้องกันการบันทึกซ้ำ'; }
   finally { button.disabled = false; search.disabled = false; }
 });
+
+// อ่านข้อความจากภาพบนอุปกรณ์ แล้วให้ผู้ใช้ตรวจสอบตัวเลขก่อนบันทึก
+const screenshot = document.querySelector('#screenshot');
+const preview = document.querySelector('#photo-preview');
+const ocrStatus = document.querySelector('#ocr-status');
+let imageUrl = null;
+let imageJob = 0;
+let ocrLibrary;
+function resetPhoto() {
+  imageJob++;
+  screenshot.value = '';
+  if (imageUrl) URL.revokeObjectURL(imageUrl);
+  imageUrl = null; preview.hidden = true; preview.removeAttribute('src'); ocrStatus.textContent = '';
+}
+function loadOcrLibrary() {
+  if (window.Tesseract) return Promise.resolve(window.Tesseract);
+  if (!ocrLibrary) ocrLibrary = new Promise((resolve, reject) => {
+    const script = document.createElement('script');
+    script.src = 'https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js';
+    script.onload = () => resolve(window.Tesseract);
+    script.onerror = () => reject(new Error('OCR unavailable'));
+    document.head.append(script);
+  }).catch(error => { ocrLibrary = null; throw error; });
+  return ocrLibrary;
+}
+function extractDistance(text) {
+  // Require a kilometer unit close to a number; never guess from pace or time.
+  const normalized = text.replace(/\r/g, '').replace(/,/g, '.');
+  const patterns = [/(\d{1,4}(?:\.\d{1,2})?)\s*(?:km\b|kilometers?\b|kilometres?\b)/gi, /(?:km\b|kilometers?\b|kilometres?\b)\s*[:\-]?\s*(\d{1,4}(?:\.\d{1,2})?)/gi];
+  const values = [];
+  patterns.forEach(pattern => {
+    for (const match of normalized.matchAll(pattern)) {
+      const value = Number(match[1]);
+      if (value > 0 && value <= 1000 && !values.includes(value)) values.push(value);
+    }
+  });
+  return values;
+}
+screenshot.addEventListener('change', async () => {
+  const job = ++imageJob;
+  const file = screenshot.files[0];
+  if (imageUrl) URL.revokeObjectURL(imageUrl);
+  preview.hidden = true; preview.removeAttribute('src'); ocrStatus.textContent = '';
+  if (!file) return;
+  if (!file.type.startsWith('image/')) { ocrStatus.textContent = 'กรุณาเลือกไฟล์รูปภาพ'; return; }
+  if (file.size > 15 * 1024 * 1024) { ocrStatus.textContent = 'รูปภาพมีขนาดเกิน 15 MB กรุณาเลือกรูปที่เล็กกว่า'; return; }
+  imageUrl = URL.createObjectURL(file); preview.src = imageUrl; preview.hidden = false;
+  ocrStatus.textContent = 'กำลังอ่านระยะทางจากภาพ อาจใช้เวลาสักครู่…';
+  const originalValue = form.elements.distance.value;
+  let worker;
+  try {
+    const library = await loadOcrLibrary();
+    worker = await library.createWorker('eng');
+    const result = await worker.recognize(file);
+    if (job !== imageJob) return;
+    const values = extractDistance(result.data.text);
+    if (values.length === 1 && form.elements.distance.value === originalValue) {
+      form.elements.distance.value = values[0];
+      ocrStatus.textContent = `อ่านได้ ${values[0]} กม. กรุณาตรวจสอบก่อนบันทึก`;
+    } else if (values.length > 1) {
+      ocrStatus.textContent = `พบหลายระยะ (${values.join(', ')} กม.) กรุณากรอกระยะที่ต้องการด้วยตนเอง`;
+    } else if (values.length === 1) {
+      ocrStatus.textContent = `อ่านได้ ${values[0]} กม. แต่ไม่ได้เปลี่ยนค่าที่คุณกำลังกรอก กรุณาตรวจสอบ`;
+    } else {
+      ocrStatus.textContent = 'ไม่พบระยะทางหน่วย km ในภาพ กรุณากรอกระยะทางด้วยตนเอง';
+    }
+  } catch (error) {
+    if (job === imageJob) ocrStatus.textContent = 'อ่านภาพไม่สำเร็จ กรุณาตรวจสอบอินเทอร์เน็ตหรือกรอกระยะทางด้วยตนเอง';
+  } finally { if (worker) await worker.terminate(); }
+});
+
