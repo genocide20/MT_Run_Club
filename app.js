@@ -78,7 +78,7 @@ function loadOcrLibrary() {
 function extractDistance(text) {
   // ระบุหน่วยกิโลเมตรภาษาไทยหรืออังกฤษใกล้ตัวเลข
   const normalized = text.replace(/\r/g, '').replace(/,/g, '.');
-  const patterns = [/(\d{1,4}(?:\.\d{1,2})?)\s*(?:km\b|kilometers?\b|kilometres?\b|ก\s*\.?\s*ม\s*\.?|กิโลเมตร)/gi, /(?:km\b|kilometers?\b|kilometres?\b|ก\s*\.?\s*ม\s*\.?|กิโลเมตร)\s*[:\-]?\s*(\d{1,4}(?:\.\d{1,2})?)/gi];
+  const patterns = [/(\d{1,4}(?:\.\d{1,2})?)[ \t]*(?:km\b|kilometers?\b|kilometres?\b|ก\s*\.?\s*ม\s*\.?|กิโลเมตร)/gi, /(?:km\b|kilometers?\b|kilometres?\b|ก\s*\.?\s*ม\s*\.?|กิโลเมตร)[ \t]*[:\-]?[ \t]*(\d{1,4}(?:\.\d{1,2})?)/gi];
   const values = [];
   patterns.forEach((pattern, index) => {
     if (index === 1 && values.length) return;
@@ -121,6 +121,7 @@ screenshot.addEventListener('change', async () => {
     if (job === imageJob) ocrStatus.textContent = 'อ่านภาพไม่สำเร็จ กรุณาตรวจสอบอินเทอร์เน็ตหรือกรอกระยะทางด้วยตนเอง';
   } finally { if (worker) await worker.terminate(); }
 });
+
 
 
 
