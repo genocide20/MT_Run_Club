@@ -171,18 +171,44 @@ screenshot.addEventListener('change', async () => {
 
 const submitTab = document.querySelector('#tab-submit');
 const resultsTab = document.querySelector('#tab-results');
+const individualRankingTab = document.querySelector('#tab-ranking');
 const submitPanel = document.querySelector('#submit-panel');
 const resultsPanel = document.querySelector('#results-panel');
-function setPage(showResults) {
-  submitPanel.hidden = showResults;
-  resultsPanel.hidden = !showResults;
-  submitTab.classList.toggle('active', !showResults);
-  resultsTab.classList.toggle('active', showResults);
-  if (showResults) { resultsTab.setAttribute('aria-current', 'page'); submitTab.removeAttribute('aria-current'); }
-  else { submitTab.setAttribute('aria-current', 'page'); resultsTab.removeAttribute('aria-current'); }
+const individualRankingPanel = document.querySelector('#individual-ranking-panel');
+function setPage(page) {
+  [[submitTab,submitPanel,'submit'],[resultsTab,resultsPanel,'results'],[individualRankingTab,individualRankingPanel,'ranking']].forEach(([tab,panel,id]) => {
+    const active=page===id;panel.hidden=!active;tab.classList.toggle('active',active);
+    if(active)tab.setAttribute('aria-current','page');else tab.removeAttribute('aria-current');
+  });
+  if(page==='ranking') refreshIndividualRanking();
 }
-submitTab.addEventListener('click', () => setPage(false));
-resultsTab.addEventListener('click', () => setPage(true));
+submitTab.addEventListener('click', () => setPage('submit'));
+resultsTab.addEventListener('click', () => setPage('results'));
+individualRankingTab.addEventListener('click', () => setPage('ranking'));
+const distanceText = value => Number(value || 0).toLocaleString('th-TH',{maximumFractionDigits:2});
+async function refreshIndividualRanking() {
+  const list=document.querySelector('#individual-ranking-list'), status=document.querySelector('#individual-ranking-status');
+  list.replaceChildren();status.textContent='กำลังโหลดอันดับ…';
+  try {
+    const url=new URL(window.SCRIPT_URL);url.searchParams.set('action','individual-ranking');
+    const response=await fetch(url);const data=await response.json();
+    if(!response.ok||!data.ok||!data.individualRanking||!Array.isArray(data.ranking))throw new Error('ranking');
+    status.textContent=data.ranking.length?'':'ยังไม่มีรายชื่อ';let rank=0,previous=null;
+    data.ranking.forEach((row,i)=>{
+      const total=Number(row.total)||0;if(total!==previous)rank=i+1;previous=total;
+      const card=document.createElement('div');card.className='ranking-row';
+      const order=document.createElement('span');order.className='ranking-position';order.textContent=rank;
+      const info=document.createElement('div');info.className='ranking-info';
+      const name=document.createElement('strong');name.textContent=row.name;
+      const amount=document.createElement('small');amount.textContent=`${distanceText(total)} / 70 กม.`;
+      const bar=document.createElement('div');bar.className='team-progress';bar.setAttribute('role','progressbar');bar.setAttribute('aria-label',`ความคืบหน้าของ ${row.name}`);bar.setAttribute('aria-valuemin','0');bar.setAttribute('aria-valuemax','70');bar.setAttribute('aria-valuenow',String(Math.min(70,Math.max(0,total))));bar.setAttribute('aria-valuetext',`${distanceText(total)} จาก 70 กิโลเมตร`);
+      const fill=document.createElement('div');fill.style.width=`${Math.min(100,Math.max(0,total/70*100))}%`;bar.append(fill);info.append(name,amount,bar);
+      const value=document.createElement('span');value.className='ranking-value';value.textContent=`${distanceText(total)} กม.`;
+      card.append(order,info,value);list.append(card);
+    });
+  } catch(error) {status.textContent='ยังโหลดอันดับไม่ได้ กรุณาตรวจสอบการเชื่อมต่อ';}
+}
+document.querySelector('#individual-ranking-refresh').addEventListener('click',refreshIndividualRanking);
 
 const progressSearch = document.querySelector('#progress-search');
 const progressStatus = document.querySelector('#progress-status');
@@ -211,6 +237,8 @@ progressSearch.addEventListener('input', () => {
         button.addEventListener('click', () => {
           document.querySelector('#progress-name').textContent = person.name;
           document.querySelector('#progress-total').textContent = Number.isFinite(person.total) ? `${person.total.toLocaleString('th-TH', {maximumFractionDigits: 2})} กม.` : 'ไม่สามารถแสดงระยะสะสมได้';
+          const total=Number(person.total)||0;document.querySelector('#progress-goal-text').textContent=`${distanceText(total)} / 70 กม. • สะสมเกินเป้าหมายได้`;
+          document.querySelector('#progress-goal-bar').style.width=`${Math.min(100,Math.max(0,total/70*100))}%`;
           progressResults.replaceChildren(); progressSelected.hidden = false; progressStatus.textContent = '';
         });
         progressResults.append(button);
@@ -234,4 +262,7 @@ teamToggle.addEventListener('click', event => {
   if (team) heroTitle.textContent = 'เผา 70,000 kcal';
   else heroTitle.innerHTML = defaultHeroTitle;
   heroLead.textContent = team ? 'บันทึก kcal ที่ใช้ทั้งวัน' : 'บันทึกระยะเดิน–วิ่ง แล้วสะสมทุกกิโลเมตรไปด้วยกัน';
+  document.querySelector('#individual-ui').hidden = team;
+  document.querySelector('#team-ui').hidden = !team;
+  window.dispatchEvent(new CustomEvent('team-mode', {detail: {team}}));
 });

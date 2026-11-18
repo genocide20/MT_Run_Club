@@ -31,3 +31,38 @@
 .tabs{display:flex;gap:6px;background:#e2e9dd;border-radius:11px;padding:5px;margin-bottom:28px}.tab{margin:0;display:block;text-align:center;min-height:48px;background:transparent;color:#567364;padding:12px;border-radius:8px}.tab.active{background:#1b4b38;color:#fff}.tab:focus-visible{outline:3px solid #9ec6ac;outline-offset:2px}.progress-card{background:#e3efd8;padding:24px;border-radius:12px;margin-top:12px}.progress-card span{font-size:13px;color:#58735e}.progress-card strong{display:block;font-size:36px;color:#183f31;margin:8px 0}.progress-card p{margin:4px 0;color:#58735e;font-size:14px}#progress-status{min-height:24px;color:#285d43;font-size:14px;line-height:1.5}@media(max-width:700px){.tabs{margin-bottom:22px}#progress-status:empty{min-height:0;margin:0}}
 
 .team-link{position:absolute;top:60px;right:clamp(32px,7vw,110px);color:#d7f55c;font-size:13px;text-decoration:underline;text-underline-offset:4px;z-index:1}.team-link:focus-visible{outline:2px solid #d7f55c;outline-offset:4px}@media(max-width:700px){.team-link{top:31px;right:24px}}
+.team-goal{background:#1b4b38;color:#fff;padding:20px;border-radius:12px}.team-goal span{display:block;font-size:12px;color:#b9d1c2}.team-goal strong{display:block;font-size:23px;margin:8px 0 15px}.goal-bar{height:8px;background:#ffffff30;border-radius:20px;overflow:hidden}.goal-bar div{height:100%;width:0;background:#d7f55c;border-radius:20px}.ranking-list{display:grid;gap:9px}.ranking-row{display:flex;align-items:center;gap:14px;background:#fff;border:1px solid #d6dfd6;border-radius:10px;padding:16px}.ranking-position{width:36px;height:36px;display:grid;place-items:center;background:#e6efd7;border-radius:50%;font-weight:800;color:#24563d}.ranking-info{flex:1;min-width:0}.ranking-info strong{display:block;overflow-wrap:anywhere}.ranking-info small{color:#718077}.ranking-value{font-weight:800;white-space:nowrap;color:#24563d}.secondary-button{background:#e3efd8;color:#1b4b38;justify-content:center}.demo-note{background:#fff5d6;color:#775b16;border-radius:8px;padding:10px 12px;font-size:13px;line-height:1.5}#team-search-status,#team-save-status,#ranking-status{font-size:14px;line-height:1.5;color:#285d43}#team-search-status:empty,#ranking-status:empty{display:none}
+
+/* Blue and mint mobile theme */
+:root{color:#173b60;background:#d7f3fc}
+body{background:linear-gradient(135deg,#b8eaf8,#def8f6)}
+.layout{max-width:1440px;margin:auto}
+.intro{background:linear-gradient(145deg,#39c3f0 0%,#1889ef 53%,#53d7b3 100%);border-radius:0 0 80px 0;box-shadow:0 18px 55px #1888b22b}
+.intro:after{border-color:#ffffff35;box-shadow:0 0 0 55px #ffffff12,0 0 0 110px #ffffff0b}
+.brand{letter-spacing:.16em}.mark{background:#ffffff;color:#168fe9;border-radius:15px;box-shadow:0 6px 18px #037fc32e}
+.intro>.eyebrow{color:#d3f7ff}.intro h1 span{color:#d5fff3}.lead{color:#edfcff}.track{color:#dcfaff}
+.team-link{color:#fff;text-decoration:none;border:1px solid #ffffff80;border-radius:100px;padding:8px 15px;top:48px;background:#ffffff20}
+.team-link:focus-visible{outline-color:#fff}
+.panel{background:#f8fdff;border:1px solid #fff;border-radius:30px;box-shadow:0 18px 60px #2586ab20;padding:42px clamp(30px,5vw,58px);margin:32px}
+.eyebrow{color:#188fbd}h2{color:#16446e}.hint,.photo-hint{color:#62839b}
+label{color:#244e70}input{border:1px solid #cde9f2;border-radius:15px;background:#fff;color:#173b60;box-shadow:0 5px 18px #459bbb0c}input::placeholder{color:#93b4c4}input:focus{border-color:#1aa8e6;box-shadow:0 0 0 4px #29b9ed24}
+button{border-radius:15px;background:linear-gradient(110deg,#219bee,#36c7da);box-shadow:0 8px 20px #219ee52c}
+button:focus-visible{outline:3px solid #80d9ef;outline-offset:3px}
+.tabs{background:#e6f6fb;border-radius:16px;padding:5px}.tab{flex:1 1 0;min-width:0;white-space:nowrap;color:#4d8199;box-shadow:none;border-radius:12px;padding:12px 4px}.tab.active{background:#fff;color:#168ccb;box-shadow:0 4px 14px #1a95c61b}
+.result{background:#fff;color:#17466a;border-color:#cde9f2;box-shadow:0 4px 14px #2996b812}.result:hover,.result:focus-visible{border-color:#55c2e4;background:#f1fbfe}.result span{color:#668aa0}
+.selected,.progress-card{background:linear-gradient(120deg,#e6f8ff,#dcf9f1);border:1px solid #c5edf2;border-radius:17px}.selected span,.selected p,.progress-card span,.progress-card p{color:#60879b}.progress-card strong{color:#138fc5}
+#team-person #team-person-team,#team-results .result span{display:inline-block;margin-top:10px;padding:7px 15px;border-radius:999px;background:#087eae;color:#fff;font-size:16px;font-weight:800;line-height:1.4}
+#team-results .result span{margin-top:3px}
+.photo-section{background:#edf9fd;border-color:#cfedf5;border-radius:17px}.photo-section input::file-selector-button{background:#d8f3fb;color:#1684b3;border-radius:10px}
+#status,#save-status,#progress-status,#ocr-status,#team-search-status,#team-save-status,#ranking-status{color:#275e7a}
+.team-goal{background:linear-gradient(120deg,#168eea,#45d5bc);border-radius:18px;box-shadow:0 10px 25px #1fa9d62b}.team-goal span{color:#e2fbff}.goal-bar div{background:#c4fff0}
+.ranking-row{border-color:#d2ebf4;border-radius:16px;box-shadow:0 5px 15px #248aad0d}.ranking-position{background:#dff6fc;color:#168ec1}.ranking-info small{color:#7292a2}.ranking-value{color:#148fb9}.secondary-button{background:#dff5fb;color:#198ab7;box-shadow:none}
+.ranking-list{margin-top:14px}.ranking-info small{display:block;margin-top:5px}.team-progress{height:7px;background:#e3f3f8;border-radius:20px;margin-top:8px;overflow:hidden}.team-progress div{height:100%;background:linear-gradient(90deg,#229fee,#46d4bb);border-radius:20px}.ranking-value{font-size:14px}
+.demo-note{background:#fff6d9;color:#775b16}.footer{border-color:#dceff5;color:#8daab8}
+@media(max-width:700px){
+  body{background:#d8f4fa}.layout{max-width:570px;margin:auto;min-height:100dvh;background:#f8fdff;box-shadow:0 0 35px #4ea8c21c}
+  .intro{padding:max(20px,env(safe-area-inset-top)) 24px 34px;border-radius:0 0 34px 34px;box-shadow:0 10px 25px #1a9dd221}
+  .intro:after{width:250px;height:250px;right:-140px;bottom:-150px}.intro>.eyebrow{margin-top:25px}.intro h1{font-size:clamp(32px,9vw,42px)}
+  .team-link{top:25px;right:24px;padding:7px 13px}.panel{position:relative;justify-self:stretch;width:calc(100% - 28px);max-width:none;margin:-13px 14px 0;padding:23px 20px max(28px,env(safe-area-inset-bottom));border-radius:24px;box-shadow:0 10px 30px #188bb117}
+  .tabs{margin-bottom:23px}.footer{margin-top:34px}
+}
