@@ -170,3 +170,55 @@ screenshot.addEventListener('change', async () => {
 
 
 
+
+const submitTab = document.querySelector('#tab-submit');
+const resultsTab = document.querySelector('#tab-results');
+const submitPanel = document.querySelector('#submit-panel');
+const resultsPanel = document.querySelector('#results-panel');
+function setPage(showResults) {
+  submitPanel.hidden = showResults;
+  resultsPanel.hidden = !showResults;
+  submitTab.classList.toggle('active', !showResults);
+  resultsTab.classList.toggle('active', showResults);
+  if (showResults) { resultsTab.setAttribute('aria-current', 'page'); submitTab.removeAttribute('aria-current'); }
+  else { submitTab.setAttribute('aria-current', 'page'); resultsTab.removeAttribute('aria-current'); }
+}
+submitTab.addEventListener('click', () => setPage(false));
+resultsTab.addEventListener('click', () => setPage(true));
+
+const progressSearch = document.querySelector('#progress-search');
+const progressStatus = document.querySelector('#progress-status');
+const progressResults = document.querySelector('#progress-results');
+const progressSelected = document.querySelector('#progress-selected');
+let progressTimer, progressRequest = 0;
+progressSearch.addEventListener('input', () => {
+  clearTimeout(progressTimer);
+  const id = ++progressRequest;
+  const query = progressSearch.value.trim();
+  progressResults.replaceChildren(); progressSelected.hidden = true;
+  if (!query) { progressStatus.textContent = ''; return; }
+  if (!window.SCRIPT_URL) { progressStatus.textContent = 'ยังไม่ได้ตั้งค่าการเชื่อมต่อ Google Sheets'; return; }
+  progressStatus.textContent = 'กำลังค้นหา…';
+  progressTimer = setTimeout(async () => {
+    try {
+      const url = new URL(window.SCRIPT_URL); url.searchParams.set('q', query);
+      const response = await fetch(url); const data = await response.json();
+      if (!response.ok || !data.ok || !Array.isArray(data.results)) throw new Error('Search failed');
+      if (id !== progressRequest) return;
+      progressStatus.textContent = data.results.length ? `พบ ${data.results.length} รายชื่อ กรุณาเลือก` : 'ไม่พบรายชื่อที่ตรงกัน';
+      data.results.forEach(person => {
+        const button = document.createElement('button'); button.type = 'button'; button.className = 'result';
+        const name = document.createElement('strong'); name.textContent = person.name;
+        const organization = document.createElement('span'); organization.textContent = person.organization || 'ไม่ระบุสังกัด';
+        button.append(name, organization);
+        button.addEventListener('click', () => {
+          document.querySelector('#progress-name').textContent = person.name;
+          document.querySelector('#progress-organization').textContent = person.organization || 'ไม่ระบุสังกัด';
+          document.querySelector('#progress-total').textContent = Number.isFinite(person.total) ? `${person.total.toLocaleString('th-TH', {maximumFractionDigits: 2})} กม.` : 'ไม่สามารถแสดงระยะสะสมได้';
+          progressResults.replaceChildren(); progressSelected.hidden = false; progressStatus.textContent = '';
+        });
+        progressResults.append(button);
+      });
+    } catch (error) { if (id === progressRequest) progressStatus.textContent = 'ค้นหาไม่สำเร็จ กรุณาตรวจสอบการเชื่อมต่อแล้วลองอีกครั้ง'; }
+  }, 300);
+});
