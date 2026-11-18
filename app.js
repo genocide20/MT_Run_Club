@@ -76,9 +76,9 @@ function loadOcrLibrary() {
   return ocrLibrary;
 }
 function extractDistance(text) {
-  // Require a kilometer unit close to a number; never guess from pace or time.
+  // ระบุหน่วยกิโลเมตรภาษาไทยหรืออังกฤษใกล้ตัวเลข
   const normalized = text.replace(/\r/g, '').replace(/,/g, '.');
-  const patterns = [/(\d{1,4}(?:\.\d{1,2})?)\s*(?:km\b|kilometers?\b|kilometres?\b)/gi, /(?:km\b|kilometers?\b|kilometres?\b)\s*[:\-]?\s*(\d{1,4}(?:\.\d{1,2})?)/gi];
+  const patterns = [/(\d{1,4}(?:\.\d{1,2})?)\s*(?:km\b|kilometers?\b|kilometres?\b|ก\s*\.?\s*ม\s*\.?|กิโลเมตร)/gi, /(?:km\b|kilometers?\b|kilometres?\b|ก\s*\.?\s*ม\s*\.?|กิโลเมตร)\s*[:\-]?\s*(\d{1,4}(?:\.\d{1,2})?)/gi];
   const values = [];
   patterns.forEach(pattern => {
     for (const match of normalized.matchAll(pattern)) {
@@ -102,7 +102,7 @@ screenshot.addEventListener('change', async () => {
   let worker;
   try {
     const library = await loadOcrLibrary();
-    worker = await library.createWorker('eng');
+    worker = await library.createWorker(['tha', 'eng']);
     const result = await worker.recognize(file);
     if (job !== imageJob) return;
     const values = extractDistance(result.data.text);
@@ -114,10 +114,11 @@ screenshot.addEventListener('change', async () => {
     } else if (values.length === 1) {
       ocrStatus.textContent = `อ่านได้ ${values[0]} กม. แต่ไม่ได้เปลี่ยนค่าที่คุณกำลังกรอก กรุณาตรวจสอบ`;
     } else {
-      ocrStatus.textContent = 'ไม่พบระยะทางหน่วย km ในภาพ กรุณากรอกระยะทางด้วยตนเอง';
+      ocrStatus.textContent = 'ไม่พบระยะทางหน่วย กม. หรือ km ในภาพ กรุณากรอกระยะทางด้วยตนเอง';
     }
   } catch (error) {
     if (job === imageJob) ocrStatus.textContent = 'อ่านภาพไม่สำเร็จ กรุณาตรวจสอบอินเทอร์เน็ตหรือกรอกระยะทางด้วยตนเอง';
   } finally { if (worker) await worker.terminate(); }
 });
+
 
