@@ -80,7 +80,8 @@ function extractDistance(text) {
   const normalized = text.replace(/\r/g, '').replace(/,/g, '.');
   const patterns = [/(\d{1,4}(?:\.\d{1,2})?)\s*(?:km\b|kilometers?\b|kilometres?\b|ก\s*\.?\s*ม\s*\.?|กิโลเมตร)/gi, /(?:km\b|kilometers?\b|kilometres?\b|ก\s*\.?\s*ม\s*\.?|กิโลเมตร)\s*[:\-]?\s*(\d{1,4}(?:\.\d{1,2})?)/gi];
   const values = [];
-  patterns.forEach(pattern => {
+  patterns.forEach((pattern, index) => {
+    if (index === 1 && values.length) return;
     for (const match of normalized.matchAll(pattern)) {
       const value = Number(match[1]);
       if (value > 0 && value <= 1000 && !values.includes(value)) values.push(value);
@@ -120,5 +121,6 @@ screenshot.addEventListener('change', async () => {
     if (job === imageJob) ocrStatus.textContent = 'อ่านภาพไม่สำเร็จ กรุณาตรวจสอบอินเทอร์เน็ตหรือกรอกระยะทางด้วยตนเอง';
   } finally { if (worker) await worker.terminate(); }
 });
+
 
 
