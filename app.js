@@ -214,6 +214,10 @@ const progressSearch = document.querySelector('#progress-search');
 const progressStatus = document.querySelector('#progress-status');
 const progressResults = document.querySelector('#progress-results');
 const progressSelected = document.querySelector('#progress-selected');
+const progressRank = document.createElement('p');
+progressRank.className = 'progress-rank';
+progressRank.setAttribute('role', 'status');
+document.querySelector('#progress-name').after(progressRank);
 let progressTimer, progressRequest = 0;
 progressSearch.addEventListener('input', () => {
   clearTimeout(progressTimer);
@@ -235,17 +239,35 @@ progressSearch.addEventListener('input', () => {
         const name = document.createElement('strong'); name.textContent = person.name;
         button.append(name);
         button.addEventListener('click', () => {
+          const selectionId = ++progressRequest;
           document.querySelector('#progress-name').textContent = person.name;
           document.querySelector('#progress-total').textContent = Number.isFinite(person.total) ? `${person.total.toLocaleString('th-TH', {maximumFractionDigits: 2})} กม.` : 'ไม่สามารถแสดงระยะสะสมได้';
           const total=Number(person.total)||0;document.querySelector('#progress-goal-text').textContent=`${distanceText(total)} / 70 กม. • สะสมเกินเป้าหมายได้`;
           document.querySelector('#progress-goal-bar').style.width=`${Math.min(100,Math.max(0,total/70*100))}%`;
           progressResults.replaceChildren(); progressSelected.hidden = false; progressStatus.textContent = '';
+          progressRank.textContent = 'กำลังโหลดอันดับ…';
+          loadProgressRank(person.name, selectionId);
         });
         progressResults.append(button);
       });
     } catch (error) { if (id === progressRequest) progressStatus.textContent = 'ค้นหาไม่สำเร็จ กรุณาตรวจสอบการเชื่อมต่อแล้วลองอีกครั้ง'; }
   }, 300);
 });
+async function loadProgressRank(name, selectionId) {
+  try {
+    const url = new URL(window.SCRIPT_URL); url.searchParams.set('action', 'individual-ranking');
+    const response = await fetch(url); const data = await response.json();
+    if (!response.ok || !data.ok || !data.individualRanking || !Array.isArray(data.ranking)) throw new Error('ranking');
+    if (selectionId !== progressRequest) return;
+    const selected = data.ranking.find(row => row.name === name);
+    if (!selected) { progressRank.textContent = 'ไม่พบอันดับ'; return; }
+    const total = Number(selected.total) || 0;
+    const rank = data.ranking.findIndex(row => (Number(row.total) || 0) === total) + 1;
+    progressRank.textContent = `อันดับ ${rank.toLocaleString('th-TH')}`;
+  } catch (error) {
+    if (selectionId === progressRequest) progressRank.textContent = 'ไม่สามารถโหลดอันดับได้';
+  }
+}
 
 
 const teamToggle = document.querySelector('#team-toggle');

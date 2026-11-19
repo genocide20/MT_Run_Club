@@ -51,6 +51,7 @@ button:focus-visible{outline:3px solid #80d9ef;outline-offset:3px}
 .tabs{background:#e6f6fb;border-radius:16px;padding:5px}.tab{flex:1 1 0;min-width:0;white-space:nowrap;color:#4d8199;box-shadow:none;border-radius:12px;padding:12px 4px}.tab.active{background:#fff;color:#168ccb;box-shadow:0 4px 14px #1a95c61b}
 .result{background:#fff;color:#17466a;border-color:#cde9f2;box-shadow:0 4px 14px #2996b812}.result:hover,.result:focus-visible{border-color:#55c2e4;background:#f1fbfe}.result span{color:#668aa0}
 .selected,.progress-card{background:linear-gradient(120deg,#e6f8ff,#dcf9f1);border:1px solid #c5edf2;border-radius:17px}.selected span,.selected p,.progress-card span,.progress-card p{color:#60879b}.progress-card strong{color:#138fc5}
+.progress-card .progress-rank{display:inline-block;margin:10px 0 4px;padding:7px 14px;background:#087eae;color:#fff;border-radius:999px;font-weight:800;font-size:15px}
 #team-person #team-person-team,#team-results .result span{display:inline-block;margin-top:10px;padding:7px 15px;border-radius:999px;background:#087eae;color:#fff;font-size:16px;font-weight:800;line-height:1.4}
 #team-results .result span{margin-top:3px}
 .photo-section{background:#edf9fd;border-color:#cfedf5;border-radius:17px}.photo-section input::file-selector-button{background:#d8f3fb;color:#1684b3;border-radius:10px}
