@@ -39,7 +39,7 @@ form.addEventListener('submit', async event => {
   event.preventDefault();
   if (!chosenPerson || !form.reportValidity()) return;
   const button = form.querySelector('button'), distance = Number(form.elements.distance.value);
-  button.disabled = true; search.disabled = true; saveStatus.textContent = 'กำลังบันทึก… กรุณาเปิดหน้าจอและหน้านี้ไว้จนกว่าจะบันทึกเสร็จ';
+  button.disabled = true; search.disabled = true; saveStatus.classList.add('is-saving'); saveStatus.textContent = 'กำลังบันทึก… กรุณาเปิดหน้าจอและหน้านี้ไว้จนกว่าจะบันทึกเสร็จ';
   let phase = 'prepare';
   try {
     const body = new URLSearchParams({name: chosenPerson.name, distance: String(distance)});
@@ -69,7 +69,7 @@ form.addEventListener('submit', async event => {
       saveStatus.textContent = 'ไม่สามารถรับผลจากระบบบันทึกได้ (การเชื่อมต่อขัดข้องหรือผลตอบกลับผิดรูปแบบ) กรุณาตรวจสอบข้อมูลในชีตและ Drive ก่อนลองอีกครั้ง เพื่อป้องกันข้อมูลซ้ำ';
     }
   }
-  finally { button.disabled = false; search.disabled = false; }
+  finally { saveStatus.classList.remove('is-saving'); button.disabled = false; search.disabled = false; }
 });
 
 // อ่านข้อความจากภาพบนอุปกรณ์ แล้วให้ผู้ใช้ตรวจสอบตัวเลขก่อนบันทึก

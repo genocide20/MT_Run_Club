@@ -94,7 +94,7 @@ teamSearch.addEventListener('input',()=>{
   }catch(e){if(id===teamRequest) teamSearchStatus.textContent='ยังเชื่อมต่อระบบทีมไม่ได้ กรุณาติดต่อผู้ดูแล';}},300);
 });
 teamForm.addEventListener('submit',async event=>{event.preventDefault();updateKcalValidity();if(!teamChoice||!teamChoice.team||!teamForm.reportValidity()||Number(teamKcal.value)>1500)return;
-  const button=teamForm.querySelector('button');button.disabled=true;teamSearch.disabled=true;teamSaveStatus.textContent='กำลังบันทึก… กรุณาเปิดหน้าจอและหน้านี้ไว้จนกว่าจะบันทึกเสร็จ';let sent=false;
+  const button=teamForm.querySelector('button');button.disabled=true;teamSearch.disabled=true;teamSaveStatus.classList.add('is-saving');teamSaveStatus.textContent='กำลังบันทึก… กรุณาเปิดหน้าจอและหน้านี้ไว้จนกว่าจะบันทึกเสร็จ';let sent=false;
   try {if(isTeamDemo){teamSaveStatus.textContent='ตัวอย่างเท่านั้น ยังไม่ได้บันทึกข้อมูลจริง';return;}
     const capability=await teamGet('team-capability');if(!capability.teamActivity){teamSaveStatus.textContent='ยังไม่ได้อัปเดต Apps Script สำหรับบันทึกกิจกรรม กรุณาติดต่อผู้ดูแล';return;}
     const activity=teamForm.elements.activity.value.trim();if(!activity){teamSaveStatus.textContent='กรุณาระบุกิจกรรมที่ใช้พลังงาน';teamForm.elements.activity.focus();return;}
@@ -106,7 +106,7 @@ teamForm.addEventListener('submit',async event=>{event.preventDefault();updateKc
     if(!data.activitySaved){teamSaveStatus.textContent='ไม่พบการยืนยันกิจกรรม กรุณาตรวจสอบชีต MT_kcal ก่อนลองอีกครั้ง';return;}
     const savedKcal=Number(teamForm.elements.kcal.value);teamForm.reset();resetTeamPhoto();teamSaveStatus.textContent='บันทึก kcal เรียบร้อยแล้ว';showSuccess(`บันทึก ${savedKcal.toLocaleString('th-TH')} kcal พร้อมภาพเรียบร้อยแล้ว`);
   }catch(e){teamSaveStatus.textContent=sent?'ไม่สามารถยืนยันผลบันทึกได้ กรุณาตรวจสอบชีต MT_kcal และ Google Drive ก่อนลองอีกครั้ง':'เตรียมข้อมูลไม่สำเร็จ กรุณาตรวจสอบรูปภาพและการเชื่อมต่อ';}
-  finally{button.disabled=false;teamSearch.disabled=false;}
+  finally{teamSaveStatus.classList.remove('is-saving');button.disabled=false;teamSearch.disabled=false;}
 });
 async function refreshRanking(){rankingList.replaceChildren();rankingStatus.textContent='กำลังโหลดอันดับ…';
   try{const data=await teamGet('team-ranking');if(!Array.isArray(data.ranking))throw Error('ranking');
