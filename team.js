@@ -3,6 +3,19 @@ const teamSearchStatus = document.querySelector('#team-search-status');
 const teamResults = document.querySelector('#team-results');
 const teamPerson = document.querySelector('#team-person');
 const teamForm = document.querySelector('#team-form');
+const teamActivity = document.querySelector('#team-activity');
+const activitySuggestions = document.querySelectorAll('.activity-suggestion');
+function updateActivitySuggestions() {
+  activitySuggestions.forEach(button => {
+    const active = teamActivity.value.trim() === button.dataset.activity;
+    button.classList.toggle('active', active); button.setAttribute('aria-pressed', String(active));
+  });
+}
+activitySuggestions.forEach(button => button.addEventListener('click', () => {
+  teamActivity.value = button.dataset.activity; teamActivity.dispatchEvent(new Event('input', {bubbles:true}));
+}));
+teamActivity.addEventListener('input', updateActivitySuggestions);
+teamForm.addEventListener('reset', () => { queueMicrotask(updateActivitySuggestions); });
 const teamPhoto = document.querySelector('#team-photo');
 const teamPhotoPreview = document.querySelector('#team-photo-preview');
 const teamPhotoStatus = document.querySelector('#team-photo-status');
