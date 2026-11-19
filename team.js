@@ -103,12 +103,83 @@ async function refreshRanking(){rankingList.replaceChildren();rankingStatus.text
   try{const data=await teamGet('team-ranking');if(!Array.isArray(data.ranking))throw Error('ranking');
     rankingStatus.textContent=data.ranking.length?'':'ยังไม่มีข้อมูลทีม';
     let rank=0, previous=null;data.ranking.forEach((row,i)=>{if(row.total!==previous)rank=i+1;previous=row.total;
-      const card=document.createElement('div');card.className='ranking-row';const order=document.createElement('span');order.className='ranking-position';order.textContent=rank;
+      const group=document.createElement('details');group.className='team-ranking-group';
+      const card=document.createElement('summary');card.className='ranking-row team-ranking-summary';const order=document.createElement('span');order.className='ranking-position';order.textContent=rank;
       const info=document.createElement('div');info.className='ranking-info';const name=document.createElement('strong');name.textContent=row.team;
       const total=Number(row.total)||0;const amount=document.createElement('small');amount.textContent=`${total.toLocaleString('th-TH')} / 70,000 kcal`;
       const bar=document.createElement('div');bar.className='team-progress';bar.setAttribute('role','progressbar');bar.setAttribute('aria-label',`ความคืบหน้าของ ${row.team}`);bar.setAttribute('aria-valuemin','0');bar.setAttribute('aria-valuemax','70000');bar.setAttribute('aria-valuenow',String(Math.min(70000,Math.max(0,total))));bar.setAttribute('aria-valuetext',`${total.toLocaleString('th-TH')} จาก 70,000 kcal`);
       const fill=document.createElement('div');fill.style.width=`${Math.min(100,Math.max(0,total/70000*100))}%`;bar.append(fill);info.append(name,amount,bar);
-      const value=document.createElement('span');value.className='ranking-value';value.textContent=`${total.toLocaleString('th-TH')} kcal`;card.append(order,info,value);rankingList.append(card);});
+      const value=document.createElement('span');value.className='ranking-value';value.textContent=`${total.toLocaleString('th-TH')} kcal`;
+      const arrow=document.createElement('span');arrow.className='team-expand-icon';arrow.setAttribute('aria-hidden','true');arrow.textContent='⌄';
+      const members=document.createElement('div');members.className='team-members';members.setAttribute('aria-live','polite');
+      card.append(order,info,value,arrow);group.append(card,members);rankingList.append(group);
+      group.addEventListener('toggle',()=>{if(group.open)loadTeamMembers(row.team,members,group);});});
   }catch(e){rankingStatus.textContent='ยังโหลดอันดับทีมไม่ได้ กรุณาติดต่อผู้ดูแล';}}
+async function readTeamSheet(sheetName) {
+  const url=new URL('https://docs.google.com/spreadsheets/d/1pyi4CzPgF-pfInIK_BgbD4UfDolegvCst9RIPIGFXuY/gviz/tq');
+  url.searchParams.set('tqx','out:json');url.searchParams.set('sheet',sheetName);
+  const response=await fetch(url);if(!response.ok)throw new Error('sheet');
+  const body=await response.text(), match=body.match(/setResponse\((\{[\s\S]*\})\);?\s*$/);
+  if(!match)throw new Error('sheet format');const data=JSON.parse(match[1]);
+  if(data.status!=='ok'||!data.table||!Array.isArray(data.table.rows))throw new Error('sheet data');
+  return data.table.rows.map(row=>row.c||[]);
+}
+function rankTeamMembers(team,employees,records) {
+  const totals=new Map();
+  employees.forEach(row=>{const name=String(row[0]?.v||'').trim(),memberTeam=String(row[1]?.v||'').trim();if(name&&memberTeam===team&&!totals.has(name))totals.set(name,{total:0,datedTotal:0,days:new Set()});});
+  records.forEach(row=>{const name=String(row[1]?.v||'').trim(),recordTeam=String(row[2]?.v||'').trim(),kcal=Number(row[3]?.v);
+    if(recordTeam!==team||!totals.has(name)||!Number.isFinite(kcal)||kcal<=0)return;
+    const member=totals.get(name);member.total+=kcal;
+    const raw=String(row[0]?.v||''),match=raw.match(/^Date\((\d+),(\d+),(\d+)/),formatted=String(row[0]?.f||'').match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+    const day=match?`${match[1]}-${Number(match[2])+1}-${Number(match[3])}`:formatted?`${formatted[3]}-${Number(formatted[2])}-${Number(formatted[1])}`:null;
+    if(day){member.days.add(day);member.datedTotal+=kcal;}
+  });
+  return [...totals].map(([name,data])=>({name,total:data.total,average:data.days.size?data.datedTotal/data.days.size:null})).sort((a,b)=>b.total-a.total||a.name.localeCompare(b.name,'th'));
+}
+async function loadTeamMembers(team,container,group) {
+  const request=(group.memberRequest||0)+1;group.memberRequest=request;
+  container.replaceChildren();const status=document.createElement('p');status.className='team-members-status';status.textContent='กำลังโหลดรายชื่อสมาชิก…';container.append(status);
+  try {
+    let members,records=[];
+    if(isTeamDemo){members=demoPeople.filter(person=>person.team===team).map(person=>({name:person.name,total:team==='ทีม A'?18900:team==='ทีม B'?15400:10700,average:1200}));}
+    else {const [employees,teamRecords]=await Promise.all([readTeamSheet('Employee'),readTeamSheet('MT_kcal')]);records=teamRecords;members=rankTeamMembers(team,employees,records);}
+    if(!group.open||group.memberRequest!==request)return;
+    container.replaceChildren();const heading=document.createElement('p');heading.className='team-members-heading';heading.textContent=`สมาชิก ${team} · ${members.length.toLocaleString('th-TH')} คน`;container.append(heading);
+    const hint=document.createElement('p');hint.className='team-average-hint';hint.textContent='ค่าเฉลี่ยคิดจากวันที่ส่งข้อมูล · แตะชื่อเพื่อดูประวัติ';container.append(hint);
+    if(!members.length){status.textContent='ไม่พบรายชื่อสมาชิกในทีม';container.append(status);return;}
+    const list=document.createElement('ol');list.className='team-members-list';let rank=0,previous=null;
+    members.forEach((member,i)=>{if(member.total!==previous)rank=i+1;previous=member.total;
+      const item=document.createElement('li');
+      const memberGroup=document.createElement('details');memberGroup.className='team-member-group';
+      const memberSummary=document.createElement('summary');memberSummary.className='team-member-row team-member-summary';
+      const position=document.createElement('span');position.className='team-member-position';position.textContent=rank;
+      const details=document.createElement('div');details.className='team-member-details';
+      const name=document.createElement('span');name.className='team-member-name';name.textContent=member.name;
+      const average=document.createElement('span');average.className='team-member-average';average.textContent=member.average===null?'เฉลี่ย — kcal/วัน':`เฉลี่ย ${member.average.toLocaleString('th-TH',{maximumFractionDigits:1})} kcal/วัน`;details.append(name,average);
+      const amount=document.createElement('strong');amount.className='team-member-value';amount.textContent=`${member.total.toLocaleString('th-TH')} kcal`;
+      const arrow=document.createElement('span');arrow.className='team-member-expand';arrow.textContent='⌄';arrow.setAttribute('aria-hidden','true');
+      const history=document.createElement('div');history.className='team-member-history';
+      memberSummary.append(position,details,amount,arrow);memberGroup.append(memberSummary,history);item.append(memberGroup);list.append(item);
+      memberGroup.addEventListener('toggle',()=>{if(memberGroup.open)renderMemberHistory(member.name,records,history);});});container.append(list);
+  }catch(error){if(group.open&&group.memberRequest===request){status.textContent='โหลดรายชื่อสมาชิกไม่ได้ กรุณาตรวจสอบการเชื่อมต่อ';container.replaceChildren(status);}}
+}
+function renderMemberHistory(name,records,container) {
+  container.replaceChildren();
+  const heading=document.createElement('p');heading.className='team-history-heading';heading.textContent='10 รายการล่าสุด';container.append(heading);
+  const rows=records.slice().reverse().filter(row=>String(row[1]?.v||'').trim()===name.trim()).slice(0,10);
+  if(!rows.length){const empty=document.createElement('p');empty.className='team-members-status';empty.textContent=isTeamDemo?'ไม่มีข้อมูลตัวอย่าง':'ยังไม่มีประวัติการส่ง kcal';container.append(empty);return;}
+  rows.forEach(row=>{
+    const item=document.createElement('div');item.className='team-history-row';
+    const info=document.createElement('div');info.className='team-history-info';
+    const amount=document.createElement('strong');const raw=Number(row[3]?.v);amount.textContent=`${Number.isFinite(raw)?raw.toLocaleString('th-TH'):String(row[3]?.f||'—')} kcal`;
+    const date=document.createElement('span');date.textContent=String(row[0]?.f||'ไม่ระบุวันเวลา');
+    const team=document.createElement('span');team.textContent=String(row[2]?.v||'');info.append(amount,date,team);item.append(info);
+    let photo;try{photo=new URL(String(row[4]?.v||''));}catch(_){photo=null;}
+    if(photo&&photo.protocol==='https:'&&photo.hostname==='drive.google.com'){
+      const link=document.createElement('a');link.className='history-photo';link.href=photo.href;link.target='_blank';link.rel='noopener noreferrer';link.textContent='ดูภาพ ↗';item.append(link);
+    }else{const noPhoto=document.createElement('span');noPhoto.className='history-no-photo';noPhoto.textContent='ไม่มีภาพ';item.append(noPhoto);}
+    container.append(item);
+  });
+}
 document.querySelector('#ranking-refresh').addEventListener('click',refreshRanking);
 if(isTeamDemo && teamToggle.getAttribute('aria-pressed')!=='true') teamToggle.click();

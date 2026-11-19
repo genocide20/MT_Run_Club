@@ -214,6 +214,13 @@ const progressSearch = document.querySelector('#progress-search');
 const progressStatus = document.querySelector('#progress-status');
 const progressResults = document.querySelector('#progress-results');
 const progressSelected = document.querySelector('#progress-selected');
+const historySection = document.createElement('section');
+historySection.className = 'history-section';
+historySection.hidden = true;
+historySection.innerHTML = '<h3>ประวัติการส่งระยะ</h3><p class="history-hint">10 ครั้งล่าสุด เรียงจากรายการใหม่ที่สุด</p><p class="history-status" role="status"></p><div class="history-list"></div>';
+progressSelected.after(historySection);
+const historyStatus = historySection.querySelector('.history-status');
+const historyList = historySection.querySelector('.history-list');
 const progressRank = document.createElement('p');
 progressRank.className = 'progress-rank';
 progressRank.setAttribute('role', 'status');
@@ -223,7 +230,7 @@ progressSearch.addEventListener('input', () => {
   clearTimeout(progressTimer);
   const id = ++progressRequest;
   const query = progressSearch.value.trim();
-  progressResults.replaceChildren(); progressSelected.hidden = true;
+  progressResults.replaceChildren(); progressSelected.hidden = true; historySection.hidden = true; historyList.replaceChildren();
   if (!query) { progressStatus.textContent = ''; return; }
   if (!window.SCRIPT_URL) { progressStatus.textContent = 'ยังไม่ได้ตั้งค่าการเชื่อมต่อ Google Sheets'; return; }
   progressStatus.textContent = 'กำลังค้นหา…';
@@ -247,12 +254,55 @@ progressSearch.addEventListener('input', () => {
           progressResults.replaceChildren(); progressSelected.hidden = false; progressStatus.textContent = '';
           progressRank.textContent = 'กำลังโหลดอันดับ…';
           loadProgressRank(person.name, selectionId);
+          historySection.hidden = false;
+          loadIndividualHistory(person.name, selectionId);
         });
         progressResults.append(button);
       });
     } catch (error) { if (id === progressRequest) progressStatus.textContent = 'ค้นหาไม่สำเร็จ กรุณาตรวจสอบการเชื่อมต่อแล้วลองอีกครั้ง'; }
   }, 300);
 });
+async function loadIndividualHistory(name, selectionId) {
+  historyList.replaceChildren();
+  historyStatus.textContent = 'กำลังโหลดประวัติ…';
+  try {
+    const url = new URL('https://docs.google.com/spreadsheets/d/1pyi4CzPgF-pfInIK_BgbD4UfDolegvCst9RIPIGFXuY/gviz/tq');
+    url.searchParams.set('tqx', 'out:json'); url.searchParams.set('sheet', 'MT_70');
+    const response = await fetch(url); if (!response.ok) throw new Error('history');
+    const raw = await response.text();
+    const payload = raw.match(/setResponse\((\{[\s\S]*\})\);?\s*$/);
+    if (!payload) throw new Error('history format');
+    const data = JSON.parse(payload[1]);
+    if (data.status !== 'ok' || !data.table || !Array.isArray(data.table.rows)) throw new Error('history');
+    if (selectionId !== progressRequest) return;
+    const entries = data.table.rows.slice().reverse().filter(row => row.c && row.c[1] && String(row.c[1].v || '').trim() === name.trim()).slice(0,10).map(row => ({
+      date: row.c[0] && (row.c[0].f || row.c[0].v) || '',
+      distance: row.c[2] && (row.c[2].f || row.c[2].v) || '0',
+      photoUrl: row.c[3] && (row.c[3].v || row.c[3].f) || ''
+    }));
+    historyStatus.textContent = entries.length ? '' : 'ยังไม่มีประวัติการส่งระยะ';
+    entries.forEach(entry => {
+      const row = document.createElement('div'); row.className = 'history-row';
+      const details = document.createElement('div'); details.className = 'history-details';
+      const distance = document.createElement('strong'); distance.textContent = `${entry.distance} กม.`;
+      const date = document.createElement('span'); date.textContent = entry.date || 'ไม่ระบุวันเวลา';
+      details.append(distance, date); row.append(details);
+      let photoUrl;
+      try { photoUrl = new URL(entry.photoUrl); } catch (_) { photoUrl = null; }
+      if (photoUrl && photoUrl.protocol === 'https:' && photoUrl.hostname === 'drive.google.com') {
+        const link = document.createElement('a'); link.className = 'history-photo';
+        link.href = photoUrl.href; link.target = '_blank'; link.rel = 'noopener noreferrer';
+        link.textContent = 'ดูภาพ ↗'; row.append(link);
+      } else {
+        const noPhoto = document.createElement('span'); noPhoto.className = 'history-no-photo';
+        noPhoto.textContent = 'ไม่มีภาพ'; row.append(noPhoto);
+      }
+      historyList.append(row);
+    });
+  } catch (error) {
+    if (selectionId === progressRequest) historyStatus.textContent = 'ยังโหลดประวัติไม่ได้ กรุณาตรวจสอบการเชื่อมต่อและ Apps Script';
+  }
+}
 async function loadProgressRank(name, selectionId) {
   try {
     const url = new URL(window.SCRIPT_URL); url.searchParams.set('action', 'individual-ranking');
@@ -271,20 +321,31 @@ async function loadProgressRank(name, selectionId) {
 
 
 const teamToggle = document.querySelector('#team-toggle');
+const individualToggle = document.querySelector('#individual-toggle');
+const scoreToggle = document.querySelector('#score-toggle');
 const heroEyebrow = document.querySelector('#hero-eyebrow');
 const heroTitle = document.querySelector('#hero-title');
 const heroLead = document.querySelector('#hero-lead');
 const defaultHeroTitle = heroTitle.innerHTML;
-teamToggle.addEventListener('click', event => {
-  event.preventDefault();
-  const team = teamToggle.getAttribute('aria-pressed') !== 'true';
+function setMode(mode) {
+  const team = mode === 'team', individual = mode === 'individual', score = mode === 'score';
   teamToggle.setAttribute('aria-pressed', String(team));
-  teamToggle.textContent = team ? 'แบบบุคคล' : 'แบบทีม';
-  heroEyebrow.textContent = team ? "LET'S PLAY TOGETHER" : 'LET’S RUN TOGETHER';
+  individualToggle.setAttribute('aria-pressed', String(individual));
+  scoreToggle.setAttribute('aria-pressed', String(score));
+  teamToggle.classList.toggle('active', team);
+  individualToggle.classList.toggle('active', individual);
+  scoreToggle.classList.toggle('active', score);
+  heroEyebrow.textContent = team ? "LET'S PLAY TOGETHER" : score ? 'POINTS TOGETHER' : 'LET’S RUN TOGETHER';
   if (team) heroTitle.textContent = 'เผา 70,000 kcal';
+  else if (score) heroTitle.textContent = 'คะแนนสะสม';
   else heroTitle.innerHTML = defaultHeroTitle;
-  heroLead.textContent = team ? 'บันทึก kcal ที่ใช้ทั้งวัน' : 'บันทึกระยะเดิน–วิ่ง แล้วสะสมทุกกิโลเมตรไปด้วยกัน';
-  document.querySelector('#individual-ui').hidden = team;
+  heroLead.textContent = team ? 'บันทึก kcal ที่ใช้ทั้งวัน' : score ? 'ดูคะแนนและกิจกรรมของคุณ' : 'บันทึกระยะเดิน–วิ่ง แล้วสะสมทุกกิโลเมตรไปด้วยกัน';
+  document.querySelector('#individual-ui').hidden = !individual;
   document.querySelector('#team-ui').hidden = !team;
+  document.querySelector('#score-ui').hidden = !score;
   window.dispatchEvent(new CustomEvent('team-mode', {detail: {team}}));
-});
+  if (score) window.dispatchEvent(new CustomEvent('score-mode'));
+}
+teamToggle.addEventListener('click', () => setMode('team'));
+individualToggle.addEventListener('click', () => setMode('individual'));
+scoreToggle.addEventListener('click', () => setMode('score'));
