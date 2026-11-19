@@ -116,6 +116,24 @@ function loadOcrLibrary() {
   }).catch(error => { ocrLibrary = null; throw error; });
   return ocrLibrary;
 }
+async function recognizeImageWithTimeout(file) {
+  let worker = null, timedOut = false, timer;
+  const work = (async () => {
+    const library = await loadOcrLibrary();
+    if (timedOut) return null;
+    worker = await library.createWorker(['tha', 'eng']);
+    if (timedOut) { const lateWorker = worker; worker = null; await lateWorker.terminate(); return null; }
+    return worker.recognize(file);
+  })();
+  try {
+    return await Promise.race([work, new Promise((_, reject) => {
+      timer = setTimeout(() => { timedOut = true; reject(new Error('OCR_TIMEOUT')); }, 6000);
+    })]);
+  } finally {
+    clearTimeout(timer);
+    if (worker) { const activeWorker = worker; worker = null; Promise.resolve(activeWorker.terminate()).catch(() => {}); }
+  }
+}
 function extractDistance(text) {
   // ระบุหน่วยกิโลเมตรภาษาไทยหรืออังกฤษใกล้ตัวเลข
   const normalized = text.replace(/\r/g, '').replace(/,/g, '.');
@@ -141,11 +159,8 @@ screenshot.addEventListener('change', async () => {
   imageUrl = URL.createObjectURL(file); preview.src = imageUrl; preview.hidden = false;
   ocrStatus.textContent = 'กำลังอ่านระยะทางจากภาพ อาจใช้เวลาสักครู่…';
   const originalValue = form.elements.distance.value;
-  let worker;
   try {
-    const library = await loadOcrLibrary();
-    worker = await library.createWorker(['tha', 'eng']);
-    const result = await worker.recognize(file);
+    const result = await recognizeImageWithTimeout(file);
     if (job !== imageJob) return;
     const values = extractDistance(result.data.text);
     if (values.length === 1 && form.elements.distance.value === originalValue) {
@@ -159,8 +174,8 @@ screenshot.addEventListener('change', async () => {
       ocrStatus.textContent = 'ไม่พบระยะทางหน่วย กม. หรือ km ในภาพ กรุณากรอกระยะทางด้วยตนเอง';
     }
   } catch (error) {
-    if (job === imageJob) ocrStatus.textContent = 'อ่านภาพไม่สำเร็จ กรุณาตรวจสอบอินเทอร์เน็ตหรือกรอกระยะทางด้วยตนเอง';
-  } finally { if (worker) await worker.terminate(); }
+    if (job === imageJob) ocrStatus.textContent = error.message === 'OCR_TIMEOUT' ? 'อ่านภาพไม่ทันภายใน 6 วินาที กรุณากรอกระยะทางด้วยตนเอง' : 'อ่านภาพไม่สำเร็จ กรุณาตรวจสอบอินเทอร์เน็ตหรือกรอกระยะทางด้วยตนเอง';
+  }
 });
 
 

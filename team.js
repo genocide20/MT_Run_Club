@@ -37,17 +37,14 @@ teamPhoto.addEventListener('change', async () => {
   teamPhotoUrl=URL.createObjectURL(file);teamPhotoPreview.src=teamPhotoUrl;teamPhotoPreview.hidden=false;
   const editVersion=kcalEditVersion, initialValue=teamKcal.value;
   teamPhotoStatus.textContent='กำลังอ่านค่า kcal จากภาพ อาจใช้เวลาสักครู่…';
-  let worker;
   try {
-    const library=await loadOcrLibrary();worker=await library.createWorker(['tha','eng']);
-    const result=await worker.recognize(file);if(job!==teamPhotoJob)return;
+    const result=await recognizeImageWithTimeout(file);if(job!==teamPhotoJob)return;
     const values=extractKcal(result.data.text);
     if(values.length===1 && kcalEditVersion===editVersion && !initialValue && !teamKcal.value){teamKcal.value=values[0];updateKcalValidity();teamPhotoStatus.textContent=`อ่านได้ ${values[0].toLocaleString('th-TH')} kcal กรุณาตรวจสอบก่อนบันทึก`;}
     else if(values.length===1) teamPhotoStatus.textContent=`อ่านได้ ${values[0].toLocaleString('th-TH')} kcal กรุณาตรวจสอบค่าที่กรอก`;
     else if(values.length>1) teamPhotoStatus.textContent=`พบหลายค่า (${values.map(value=>value.toLocaleString('th-TH')).join(', ')} kcal) กรุณากรอกค่าที่ต้องการ`;
     else teamPhotoStatus.textContent='ไม่พบค่า kcal ที่ชัดเจนในภาพ กรุณากรอกด้วยตนเอง';
-  } catch(error) {if(job===teamPhotoJob)teamPhotoStatus.textContent='อ่านภาพไม่สำเร็จ กรุณาตรวจสอบอินเทอร์เน็ตหรือกรอก kcal ด้วยตนเอง';}
-  finally {if(worker)await worker.terminate();}
+  } catch(error) {if(job===teamPhotoJob)teamPhotoStatus.textContent=error.message==='OCR_TIMEOUT'?'อ่านภาพไม่ทันภายใน 6 วินาที กรุณากรอก kcal ด้วยตนเอง':'อ่านภาพไม่สำเร็จ กรุณาตรวจสอบอินเทอร์เน็ตหรือกรอก kcal ด้วยตนเอง';}
 });
 const teamSaveStatus = document.querySelector('#team-save-status');
 const teamEntry = document.querySelector('#team-entry');

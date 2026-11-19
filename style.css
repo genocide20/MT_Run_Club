@@ -102,7 +102,7 @@ button:focus-visible{outline:3px solid #80d9ef;outline-offset:3px}
 #hero-title .hero-number{font-size:clamp(58px,8vw,100px);vertical-align:baseline}
 #hero-title .hero-caption{font-size:clamp(20px,2.8vw,34px);vertical-align:baseline}
 @media(max-width:700px){#hero-title .hero-number{font-size:clamp(50px,14vw,80px)}#hero-title .hero-caption{font-size:clamp(18px,5vw,28px)}}
-#hero-title .hero-shirt{display:inline-block;width:clamp(36px,5vw,56px);height:auto;margin-right:.14em;color:#fff;vertical-align:baseline;filter:drop-shadow(0 3px 8px #175ab52b)}
+#hero-title .hero-shirt{display:inline-block;width:clamp(36px,5vw,56px);height:auto;margin-right:.14em;color:#e0c4ff;vertical-align:baseline;filter:drop-shadow(0 3px 8px #175ab52b)}
 @media(max-width:700px){#hero-title .hero-shirt{width:clamp(32px,9vw,45px)}}
 #hero-title .hero-flame{display:inline-block;width:clamp(32px,5vw,52px);height:auto;vertical-align:-.12em;filter:drop-shadow(0 3px 8px #ad451c44)}#hero-title .hero-team-value{color:#fff;overflow-wrap:anywhere}
 @media(max-width:700px){#hero-title .hero-flame{width:clamp(28px,8vw,40px)}}
