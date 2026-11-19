@@ -176,7 +176,7 @@ function renderMemberHistory(name,records,container) {
     const team=document.createElement('span');team.textContent=String(row[2]?.v||'');info.append(amount,date,team);item.append(info);
     let photo;try{photo=new URL(String(row[4]?.v||''));}catch(_){photo=null;}
     if(photo&&photo.protocol==='https:'&&photo.hostname==='drive.google.com'){
-      const link=document.createElement('a');link.className='history-photo';link.href=photo.href;link.target='_blank';link.rel='noopener noreferrer';link.textContent='ดูภาพ';item.append(link);
+      const link=document.createElement('a');link.className='history-photo';link.href=photo.href;link.target='_blank';link.rel='noopener noreferrer';link.dataset.photoDate=date.textContent;link.dataset.photoValue=amount.textContent;link.textContent='ดูภาพ';item.append(link);
     }else{const noPhoto=document.createElement('span');noPhoto.className='history-no-photo';noPhoto.textContent='ไม่มีภาพ';item.append(noPhoto);}
     container.append(item);
   });

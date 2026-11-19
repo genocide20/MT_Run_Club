@@ -293,6 +293,7 @@ function renderIndividualHistory(entries, list) {
       if (photoUrl && photoUrl.protocol === 'https:' && photoUrl.hostname === 'drive.google.com') {
         const link = document.createElement('a'); link.className = 'history-photo';
         link.href = photoUrl.href; link.target = '_blank'; link.rel = 'noopener noreferrer';
+        link.dataset.photoDate = entry.date || 'ไม่ระบุวันเวลา'; link.dataset.photoValue = `${entry.distance} กม.`;
         link.textContent = 'ดูภาพ'; row.append(link);
       } else {
         const noPhoto = document.createElement('span'); noPhoto.className = 'history-no-photo';
