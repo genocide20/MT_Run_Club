@@ -360,10 +360,18 @@ function setMode(mode) {
   individualToggle.classList.toggle('active', individual);
   scoreToggle.classList.toggle('active', score);
   heroEyebrow.textContent = team ? "LET'S PLAY TOGETHER" : score ? 'POINTS TOGETHER' : 'LET’S RUN TOGETHER';
-  if (team) heroTitle.textContent = 'เผา 70,000 kcal';
-  else if (score) heroTitle.textContent = 'คะแนนสะสม';
-  else heroTitle.innerHTML = defaultHeroTitle;
-  heroLead.textContent = team ? 'บันทึก kcal ที่ใช้ทั้งวัน' : score ? 'ดูคะแนนและกิจกรรมของคุณ' : 'บันทึกระยะเดิน–วิ่ง แล้วสะสมทุกกิโลเมตรไปด้วยกัน';
+  if (team) {
+    heroTitle.setAttribute('aria-label','เผา 70,000 kcal');
+    heroTitle.innerHTML = '<svg class="hero-flame" viewBox="0 0 48 48" aria-hidden="true" focusable="false"><path fill="#ffcf5c" d="M25 3c2 10-5 12-5 19-3-2-4-5-4-8C8 20 6 25 6 30c0 10 8 16 18 16s18-6 18-16C42 20 35 11 25 3Z"/><path fill="#ff754f" d="M26 23c0 5-6 6-6 11 0 2 1 4 4 5-7 0-11-4-11-9 0-4 3-7 5-9 0 3 2 5 3 5 0-5 3-8 5-12 1 4 3 6 5 8 3 3 5 5 5 9 0 5-4 8-10 8 3-2 4-4 4-6 0-4-2-7-4-10Z"/></svg> <span class="hero-team-value">70,000 kcal</span>';
+  } else {
+    heroTitle.removeAttribute('aria-label');
+    if (score) {
+      heroTitle.setAttribute('aria-label','คะแนนสะสม');
+      heroTitle.innerHTML = '<svg class="hero-star" viewBox="0 0 48 48" aria-hidden="true" focusable="false"><circle cx="24" cy="24" r="22" fill="#fff"/><path fill="#ffbf39" d="m24 9 4.4 9 9.9 1.4-7.2 7 1.7 9.8L24 31.5l-8.8 4.7 1.7-9.8-7.2-7 9.9-1.4z"/></svg> <span class="hero-score-value">คะแนนสะสม</span>';
+    }
+    else heroTitle.innerHTML = defaultHeroTitle;
+  }
+  heroLead.textContent = team ? 'แข่งขันทีม kcal สะสม' : score ? 'ดูคะแนนและกิจกรรมของคุณ' : '28/12/2569 - 27/1/2570';
   document.querySelector('#individual-ui').hidden = !individual;
   document.querySelector('#team-ui').hidden = !team;
   document.querySelector('#score-ui').hidden = !score;
