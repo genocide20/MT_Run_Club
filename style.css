@@ -81,6 +81,9 @@ button:focus-visible{outline:3px solid #80d9ef;outline-offset:3px}
 #save-status.is-saving,#team-save-status.is-saving{padding:12px 14px;border:1px solid #efad69;border-radius:12px;background:#fff1df;color:#9a3d00;font-size:15px;font-weight:800;line-height:1.6;animation:saving-highlight 1.5s ease-in-out infinite}
 @keyframes saving-highlight{0%,100%{box-shadow:0 0 0 0 #e88b3333}50%{box-shadow:0 0 0 5px #e88b3326}}
 @media(prefers-reduced-motion:reduce){#save-status.is-saving,#team-save-status.is-saving{animation:none}}
+.is-loading::before{content:'';display:inline-block;width:14px;height:14px;margin-right:9px;border:2px solid currentColor;border-right-color:transparent;border-radius:50%;vertical-align:-2px;animation:loading-spin .8s linear infinite}
+@keyframes loading-spin{to{transform:rotate(360deg)}}
+@media(prefers-reduced-motion:reduce){.is-loading::before{animation:none}}
 .demo-note{background:#fff6d9;color:#775b16}.footer{border-color:#dceff5;color:#8daab8}
 @media(max-width:700px){
   body{background:#d8f4fa}.layout{max-width:570px;margin:auto;min-height:100dvh;background:#f8fdff;box-shadow:0 0 35px #4ea8c21c}
