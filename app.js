@@ -196,7 +196,8 @@ async function refreshIndividualRanking() {
     status.textContent=data.ranking.length?'':'ยังไม่มีรายชื่อ';let rank=0,previous=null;
     data.ranking.forEach((row,i)=>{
       const total=Number(row.total)||0;if(total!==previous)rank=i+1;previous=total;
-      const card=document.createElement('div');card.className='ranking-row';
+      const group=document.createElement('details');group.className='team-ranking-group';
+      const card=document.createElement('summary');card.className='ranking-row team-ranking-summary';
       const order=document.createElement('span');order.className='ranking-position';order.textContent=rank;
       const info=document.createElement('div');info.className='ranking-info';
       const name=document.createElement('strong');name.textContent=row.name;
@@ -204,7 +205,10 @@ async function refreshIndividualRanking() {
       const bar=document.createElement('div');bar.className='team-progress';bar.setAttribute('role','progressbar');bar.setAttribute('aria-label',`ความคืบหน้าของ ${row.name}`);bar.setAttribute('aria-valuemin','0');bar.setAttribute('aria-valuemax','70');bar.setAttribute('aria-valuenow',String(Math.min(70,Math.max(0,total))));bar.setAttribute('aria-valuetext',`${distanceText(total)} จาก 70 กิโลเมตร`);
       const fill=document.createElement('div');fill.style.width=`${Math.min(100,Math.max(0,total/70*100))}%`;bar.append(fill);info.append(name,amount,bar);
       const value=document.createElement('span');value.className='ranking-value';value.textContent=`${distanceText(total)} กม.`;
-      card.append(order,info,value);list.append(card);
+      const arrow=document.createElement('span');arrow.className='team-expand-icon';arrow.setAttribute('aria-hidden','true');arrow.textContent='⌄';
+      const history=document.createElement('div');history.className='team-members individual-ranking-history';history.setAttribute('aria-live','polite');
+      card.append(order,info,value,arrow);group.append(card,history);list.append(group);
+      group.addEventListener('toggle',()=>{if(group.open)loadRankingHistory(row.name,history,group);});
     });
   } catch(error) {status.textContent='ยังโหลดอันดับไม่ได้ กรุณาตรวจสอบการเชื่อมต่อ';}
 }
@@ -262,10 +266,7 @@ progressSearch.addEventListener('input', () => {
     } catch (error) { if (id === progressRequest) progressStatus.textContent = 'ค้นหาไม่สำเร็จ กรุณาตรวจสอบการเชื่อมต่อแล้วลองอีกครั้ง'; }
   }, 300);
 });
-async function loadIndividualHistory(name, selectionId) {
-  historyList.replaceChildren();
-  historyStatus.textContent = 'กำลังโหลดประวัติ…';
-  try {
+async function getIndividualHistory(name) {
     const url = new URL('https://docs.google.com/spreadsheets/d/1pyi4CzPgF-pfInIK_BgbD4UfDolegvCst9RIPIGFXuY/gviz/tq');
     url.searchParams.set('tqx', 'out:json'); url.searchParams.set('sheet', 'MT_70');
     const response = await fetch(url); if (!response.ok) throw new Error('history');
@@ -274,13 +275,13 @@ async function loadIndividualHistory(name, selectionId) {
     if (!payload) throw new Error('history format');
     const data = JSON.parse(payload[1]);
     if (data.status !== 'ok' || !data.table || !Array.isArray(data.table.rows)) throw new Error('history');
-    if (selectionId !== progressRequest) return;
-    const entries = data.table.rows.slice().reverse().filter(row => row.c && row.c[1] && String(row.c[1].v || '').trim() === name.trim()).slice(0,10).map(row => ({
+    return data.table.rows.slice().reverse().filter(row => row.c && row.c[1] && String(row.c[1].v || '').trim() === name.trim()).slice(0,10).map(row => ({
       date: row.c[0] && (row.c[0].f || row.c[0].v) || '',
       distance: row.c[2] && (row.c[2].f || row.c[2].v) || '0',
       photoUrl: row.c[3] && (row.c[3].v || row.c[3].f) || ''
     }));
-    historyStatus.textContent = entries.length ? '' : 'ยังไม่มีประวัติการส่งระยะ';
+}
+function renderIndividualHistory(entries, list) {
     entries.forEach(entry => {
       const row = document.createElement('div'); row.className = 'history-row';
       const details = document.createElement('div'); details.className = 'history-details';
@@ -292,16 +293,36 @@ async function loadIndividualHistory(name, selectionId) {
       if (photoUrl && photoUrl.protocol === 'https:' && photoUrl.hostname === 'drive.google.com') {
         const link = document.createElement('a'); link.className = 'history-photo';
         link.href = photoUrl.href; link.target = '_blank'; link.rel = 'noopener noreferrer';
-        link.textContent = 'ดูภาพ ↗'; row.append(link);
+        link.textContent = 'ดูภาพ'; row.append(link);
       } else {
         const noPhoto = document.createElement('span'); noPhoto.className = 'history-no-photo';
         noPhoto.textContent = 'ไม่มีภาพ'; row.append(noPhoto);
       }
-      historyList.append(row);
+      list.append(row);
     });
+}
+async function loadIndividualHistory(name, selectionId) {
+  historyList.replaceChildren();
+  historyStatus.textContent = 'กำลังโหลดประวัติ…';
+  try {
+    const entries=await getIndividualHistory(name);
+    if (selectionId !== progressRequest) return;
+    historyStatus.textContent = entries.length ? '' : 'ยังไม่มีประวัติการส่งระยะ';
+    renderIndividualHistory(entries,historyList);
   } catch (error) {
     if (selectionId === progressRequest) historyStatus.textContent = 'ยังโหลดประวัติไม่ได้ กรุณาตรวจสอบการเชื่อมต่อและ Apps Script';
   }
+}
+async function loadRankingHistory(name, container, group) {
+  const request=(group.historyRequest||0)+1;group.historyRequest=request;
+  container.replaceChildren();
+  const heading=document.createElement('p');heading.className='team-history-heading';heading.textContent='10 รายการล่าสุด';
+  const status=document.createElement('p');status.className='team-members-status';status.textContent='กำลังโหลดประวัติ…';
+  const list=document.createElement('div');list.className='history-list';container.append(heading,status,list);
+  try {
+    const entries=await getIndividualHistory(name);if(!group.open||group.historyRequest!==request)return;
+    status.textContent=entries.length?'':'ยังไม่มีประวัติการส่งระยะ';renderIndividualHistory(entries,list);
+  }catch(error){if(group.open&&group.historyRequest===request)status.textContent='โหลดประวัติไม่ได้ กรุณาตรวจสอบการเชื่อมต่อ';}
 }
 async function loadProgressRank(name, selectionId) {
   try {
