@@ -39,7 +39,7 @@ form.addEventListener('submit', async event => {
   event.preventDefault();
   if (!chosenPerson || !form.reportValidity()) return;
   const button = form.querySelector('button'), distance = Number(form.elements.distance.value);
-  button.disabled = true; search.disabled = true; saveStatus.textContent = 'กำลังบันทึก…';
+  button.disabled = true; search.disabled = true; saveStatus.textContent = 'กำลังบันทึก… กรุณาเปิดหน้าจอและหน้านี้ไว้จนกว่าจะบันทึกเสร็จ';
   let phase = 'prepare';
   try {
     const body = new URLSearchParams({name: chosenPerson.name, distance: String(distance)});
@@ -47,7 +47,7 @@ form.addEventListener('submit', async event => {
       const checkUrl = new URL(window.SCRIPT_URL); checkUrl.searchParams.set('capability', 'photo-upload');
       const capability = await (await fetch(checkUrl)).json();
       if (!capability.photoUpload) { saveStatus.textContent = 'ยังไม่ได้อัปเดต Google Apps Script สำหรับบันทึกรูป กรุณาติดต่อผู้ดูแล'; return; }
-      saveStatus.textContent = 'กำลังบีบอัดรูปและบันทึก…';
+      saveStatus.textContent = 'กำลังบีบอัดรูปและบันทึก… กรุณาเปิดหน้าจอและหน้านี้ไว้จนกว่าจะบันทึกเสร็จ';
       body.set('photo', await compressPhoto(screenshot.files[0]));
     }
     phase = 'sent';
@@ -60,7 +60,7 @@ form.addEventListener('submit', async event => {
       return;
     }
     if (screenshot.files.length && !data.photoSaved) { saveStatus.textContent = 'ไม่พบการยืนยันว่าบันทึกรูปสำเร็จ กรุณาตรวจสอบชีตและ Drive ก่อนลองอีกครั้ง'; return; }
-    form.reset(); resetPhoto(); showTotal(data.total); saveStatus.textContent = 'บันทึกระยะทางเรียบร้อยแล้ว';
+    form.reset(); resetPhoto(); showTotal(data.total); saveStatus.textContent = 'บันทึกระยะทางเรียบร้อยแล้ว'; showSuccess(`บันทึกระยะทาง ${distance.toLocaleString('th-TH', {maximumFractionDigits: 2})} กม. พร้อมภาพเรียบร้อยแล้ว`);
   } catch (error) {
     if (phase === 'prepare') {
       const details = {'Invalid image': 'ไฟล์รูปไม่ถูกต้องหรือมีขนาดเกิน 15 MB', 'Image too large': 'รูปหลังบีบอัดยังมีขนาดใหญ่เกินไป', 'Canvas unavailable': 'อุปกรณ์ไม่รองรับการประมวลผลรูป'};
@@ -193,8 +193,9 @@ async function refreshIndividualRanking() {
     const url=new URL(window.SCRIPT_URL);url.searchParams.set('action','individual-ranking');
     const response=await fetch(url);const data=await response.json();
     if(!response.ok||!data.ok||!data.individualRanking||!Array.isArray(data.ranking))throw new Error('ranking');
-    status.textContent=data.ranking.length?'':'ยังไม่มีรายชื่อ';let rank=0,previous=null;
-    data.ranking.forEach((row,i)=>{
+    const participants=data.ranking.filter(row=>Number.isFinite(Number(row.total))&&Number(row.total)>0);
+    status.textContent=participants.length?'':'ยังไม่มีผู้ส่งระยะทาง';let rank=0,previous=null;
+    participants.forEach((row,i)=>{
       const total=Number(row.total)||0;if(total!==previous)rank=i+1;previous=total;
       const group=document.createElement('details');group.className='team-ranking-group';
       const card=document.createElement('summary');card.className='ranking-row team-ranking-summary';
@@ -208,7 +209,7 @@ async function refreshIndividualRanking() {
       const arrow=document.createElement('span');arrow.className='team-expand-icon';arrow.setAttribute('aria-hidden','true');arrow.textContent='⌄';
       const history=document.createElement('div');history.className='team-members individual-ranking-history';history.setAttribute('aria-live','polite');
       card.append(order,info,value,arrow);group.append(card,history);list.append(group);
-      group.addEventListener('toggle',()=>{if(group.open)loadRankingHistory(row.name,history,group);});
+      group.addEventListener('toggle',()=>{if(group.open){for(const other of list.children){if(other!==group&&other.tagName==='DETAILS')other.open=false;}loadRankingHistory(row.name,history,group);}});
     });
   } catch(error) {status.textContent='ยังโหลดอันดับไม่ได้ กรุณาตรวจสอบการเชื่อมต่อ';}
 }
@@ -334,6 +335,7 @@ async function loadProgressRank(name, selectionId) {
     const selected = data.ranking.find(row => row.name === name);
     if (!selected) { progressRank.textContent = 'ไม่พบอันดับ'; return; }
     const total = Number(selected.total) || 0;
+    if (total <= 0) { progressRank.textContent = 'ยังไม่มีอันดับ'; return; }
     const rank = data.ranking.findIndex(row => (Number(row.total) || 0) === total) + 1;
     progressRank.textContent = `อันดับ ${rank.toLocaleString('th-TH')}`;
   } catch (error) {

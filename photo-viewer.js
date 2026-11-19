@@ -2,7 +2,7 @@
 const photoDialog = document.createElement('dialog');
 photoDialog.className = 'photo-viewer';
 photoDialog.setAttribute('aria-labelledby', 'photo-viewer-title');
-photoDialog.innerHTML = '<div class="photo-viewer-header"><h2 id="photo-viewer-title"><span class="photo-viewer-date"></span><span class="photo-viewer-value"></span></h2><button type="button" class="photo-viewer-close" aria-label="ปิดภาพ">×</button></div><iframe class="photo-viewer-frame" title="ภาพที่ส่งจาก Google Drive" allow="fullscreen"></iframe><div class="photo-viewer-footer"><span>หากภาพไม่แสดง โปรดตรวจสอบสิทธิ์เข้าถึง</span><a class="photo-viewer-external" target="_blank" rel="noopener noreferrer">เปิดใน Google Drive ↗</a></div>';
+photoDialog.innerHTML = '<div class="photo-viewer-header"><h2 id="photo-viewer-title"><span class="photo-viewer-date"></span><span class="photo-viewer-value"></span><span class="photo-viewer-activity"></span></h2><button type="button" class="photo-viewer-close" aria-label="ปิดภาพ">×</button></div><iframe class="photo-viewer-frame" title="ภาพที่ส่งจาก Google Drive" allow="fullscreen"></iframe><div class="photo-viewer-footer"><span>หากภาพไม่แสดง โปรดตรวจสอบสิทธิ์เข้าถึง</span><a class="photo-viewer-external" target="_blank" rel="noopener noreferrer">เปิดใน Google Drive ↗</a></div>';
 document.body.append(photoDialog);
 const photoFrame = photoDialog.querySelector('.photo-viewer-frame');
 const photoExternal = photoDialog.querySelector('.photo-viewer-external');
@@ -30,6 +30,7 @@ document.addEventListener('click', event => {
   event.preventDefault();
   photoDialog.querySelector('.photo-viewer-date').textContent = link.dataset.photoDate || 'ไม่ระบุวันเวลา';
   photoDialog.querySelector('.photo-viewer-value').textContent = link.dataset.photoValue || 'ไม่ระบุค่าที่ส่ง';
+  photoDialog.querySelector('.photo-viewer-activity').textContent = link.dataset.photoActivity || '';
   photoExternal.href = link.href;
   photoFrame.src = previewUrl;
   photoDialog.showModal();

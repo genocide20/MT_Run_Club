@@ -8,7 +8,13 @@ const teamPhotoPreview = document.querySelector('#team-photo-preview');
 const teamPhotoStatus = document.querySelector('#team-photo-status');
 let teamPhotoUrl = null, teamPhotoJob = 0, kcalEditVersion = 0;
 const teamKcal = document.querySelector('#team-kcal');
-teamKcal.addEventListener('input', () => { kcalEditVersion++; });
+const teamKcalError = document.querySelector('#team-kcal-error');
+function updateKcalValidity() {
+  const overLimit = teamKcal.value !== '' && Number(teamKcal.value) > 1500;
+  const message = overLimit ? 'กรุณากรอกไม่เกิน 1,500 kcal' : '';
+  teamKcal.setCustomValidity(message); teamKcalError.textContent = message;
+}
+teamKcal.addEventListener('input', () => { kcalEditVersion++; updateKcalValidity(); });
 function resetTeamPhoto() { teamPhotoJob++; if(teamPhotoUrl) URL.revokeObjectURL(teamPhotoUrl); teamPhotoUrl=null; teamPhoto.value=''; teamPhotoPreview.hidden=true; teamPhotoPreview.removeAttribute('src'); teamPhotoStatus.textContent=''; }
 function extractKcal(text) {
   const normalized = text.replace(/[๐-๙]/g, digit => String('๐๑๒๓๔๕๖๗๘๙'.indexOf(digit)));
@@ -36,7 +42,7 @@ teamPhoto.addEventListener('change', async () => {
     const library=await loadOcrLibrary();worker=await library.createWorker(['tha','eng']);
     const result=await worker.recognize(file);if(job!==teamPhotoJob)return;
     const values=extractKcal(result.data.text);
-    if(values.length===1 && kcalEditVersion===editVersion && !initialValue && !teamKcal.value){teamKcal.value=values[0];teamPhotoStatus.textContent=`อ่านได้ ${values[0].toLocaleString('th-TH')} kcal กรุณาตรวจสอบก่อนบันทึก`;}
+    if(values.length===1 && kcalEditVersion===editVersion && !initialValue && !teamKcal.value){teamKcal.value=values[0];updateKcalValidity();teamPhotoStatus.textContent=`อ่านได้ ${values[0].toLocaleString('th-TH')} kcal กรุณาตรวจสอบก่อนบันทึก`;}
     else if(values.length===1) teamPhotoStatus.textContent=`อ่านได้ ${values[0].toLocaleString('th-TH')} kcal กรุณาตรวจสอบค่าที่กรอก`;
     else if(values.length>1) teamPhotoStatus.textContent=`พบหลายค่า (${values.map(value=>value.toLocaleString('th-TH')).join(', ')} kcal) กรุณากรอกค่าที่ต้องการ`;
     else teamPhotoStatus.textContent='ไม่พบค่า kcal ที่ชัดเจนในภาพ กรุณากรอกด้วยตนเอง';
@@ -84,18 +90,21 @@ teamSearch.addEventListener('input',()=>{
       const label=document.createElement('span');label.textContent=person.team ? `ทีม: ${person.team}` : 'ยังไม่ได้ระบุทีม';
       button.append(name,label);button.addEventListener('click',()=>{teamChoice=person;teamResults.replaceChildren();teamSearchStatus.textContent='';
         document.querySelector('#team-person-name').textContent=person.name;document.querySelector('#team-person-team').textContent=person.team ? `ทีม: ${person.team}` : 'ยังไม่ได้ระบุทีม กรุณาติดต่อผู้ดูแล';
-        teamPerson.hidden=false;teamForm.hidden=!person.team;teamForm.reset();});teamResults.append(button);});
+        teamPerson.hidden=false;teamForm.hidden=!person.team;teamForm.reset();updateKcalValidity();});teamResults.append(button);});
   }catch(e){if(id===teamRequest) teamSearchStatus.textContent='ยังเชื่อมต่อระบบทีมไม่ได้ กรุณาติดต่อผู้ดูแล';}},300);
 });
-teamForm.addEventListener('submit',async event=>{event.preventDefault();if(!teamChoice||!teamChoice.team||!teamForm.reportValidity())return;
-  const button=teamForm.querySelector('button');button.disabled=true;teamSearch.disabled=true;teamSaveStatus.textContent='กำลังบันทึก…';let sent=false;
+teamForm.addEventListener('submit',async event=>{event.preventDefault();updateKcalValidity();if(!teamChoice||!teamChoice.team||!teamForm.reportValidity()||Number(teamKcal.value)>1500)return;
+  const button=teamForm.querySelector('button');button.disabled=true;teamSearch.disabled=true;teamSaveStatus.textContent='กำลังบันทึก… กรุณาเปิดหน้าจอและหน้านี้ไว้จนกว่าจะบันทึกเสร็จ';let sent=false;
   try {if(isTeamDemo){teamSaveStatus.textContent='ตัวอย่างเท่านั้น ยังไม่ได้บันทึกข้อมูลจริง';return;}
-    const capability=await teamGet('team-capability');const body=new URLSearchParams({action:'team-submit',name:teamChoice.name,kcal:teamForm.elements.kcal.value});
-    if(teamPhoto.files.length){if(!capability.teamPhotoUpload){teamSaveStatus.textContent='ระบบยังไม่รองรับการบันทึกรูป กรุณาติดต่อผู้ดูแล';return;}teamSaveStatus.textContent='กำลังบีบอัดรูป…';body.set('photo',await compressPhoto(teamPhoto.files[0]));}
-    teamSaveStatus.textContent='กำลังบันทึก…';sent=true;const response=await fetch(window.SCRIPT_URL,{method:'POST',body});const data=await response.json();
+    const capability=await teamGet('team-capability');if(!capability.teamActivity){teamSaveStatus.textContent='ยังไม่ได้อัปเดต Apps Script สำหรับบันทึกกิจกรรม กรุณาติดต่อผู้ดูแล';return;}
+    const activity=teamForm.elements.activity.value.trim();if(!activity){teamSaveStatus.textContent='กรุณาระบุกิจกรรมที่ใช้พลังงาน';teamForm.elements.activity.focus();return;}
+    const body=new URLSearchParams({action:'team-submit',name:teamChoice.name,kcal:teamForm.elements.kcal.value,activity});
+    if(teamPhoto.files.length){if(!capability.teamPhotoUpload){teamSaveStatus.textContent='ระบบยังไม่รองรับการบันทึกรูป กรุณาติดต่อผู้ดูแล';return;}teamSaveStatus.textContent='กำลังบีบอัดรูป… กรุณาเปิดหน้าจอและหน้านี้ไว้จนกว่าจะบันทึกเสร็จ';body.set('photo',await compressPhoto(teamPhoto.files[0]));}
+    teamSaveStatus.textContent='กำลังบันทึก… กรุณาเปิดหน้าจอและหน้านี้ไว้จนกว่าจะบันทึกเสร็จ';sent=true;const response=await fetch(window.SCRIPT_URL,{method:'POST',body});const data=await response.json();
     if(!response.ok||!data.ok||!data.teamApi){const errors={validate:'ข้อมูลหรือรูปภาพไม่ถูกต้อง',employee:'ไม่พบชื่อหรือทีม กรุณาตรวจสอบชีต Employee',sheet:'ตรวจสอบหัวคอลัมน์ในชีต MT_kcal',image:'ไฟล์รูปภาพไม่ถูกต้อง',drive:'บันทึกรูปใน Google Drive ไม่สำเร็จ ตรวจสอบสิทธิ์โฟลเดอร์',write:'บันทึกลงชีตไม่สำเร็จ กรุณาตรวจสอบข้อมูลก่อนลองอีกครั้ง'};teamSaveStatus.textContent='บันทึกไม่สำเร็จ: '+(errors[data.stage]||'กรุณาตรวจสอบข้อมูลก่อนลองอีกครั้ง');return;}
     if(teamPhoto.files.length&&!data.photoSaved){teamSaveStatus.textContent='ไม่พบการยืนยันรูป กรุณาตรวจสอบชีตและ Drive ก่อนลองอีกครั้ง';return;}
-    teamForm.reset();resetTeamPhoto();teamSaveStatus.textContent='บันทึก kcal เรียบร้อยแล้ว';
+    if(!data.activitySaved){teamSaveStatus.textContent='ไม่พบการยืนยันกิจกรรม กรุณาตรวจสอบชีต MT_kcal ก่อนลองอีกครั้ง';return;}
+    const savedKcal=Number(teamForm.elements.kcal.value);teamForm.reset();resetTeamPhoto();teamSaveStatus.textContent='บันทึก kcal เรียบร้อยแล้ว';showSuccess(`บันทึก ${savedKcal.toLocaleString('th-TH')} kcal พร้อมภาพเรียบร้อยแล้ว`);
   }catch(e){teamSaveStatus.textContent=sent?'ไม่สามารถยืนยันผลบันทึกได้ กรุณาตรวจสอบชีต MT_kcal และ Google Drive ก่อนลองอีกครั้ง':'เตรียมข้อมูลไม่สำเร็จ กรุณาตรวจสอบรูปภาพและการเชื่อมต่อ';}
   finally{button.disabled=false;teamSearch.disabled=false;}
 });
@@ -113,7 +122,7 @@ async function refreshRanking(){rankingList.replaceChildren();rankingStatus.text
       const arrow=document.createElement('span');arrow.className='team-expand-icon';arrow.setAttribute('aria-hidden','true');arrow.textContent='⌄';
       const members=document.createElement('div');members.className='team-members';members.setAttribute('aria-live','polite');
       card.append(order,info,value,arrow);group.append(card,members);rankingList.append(group);
-      group.addEventListener('toggle',()=>{if(group.open)loadTeamMembers(row.team,members,group);});});
+      group.addEventListener('toggle',()=>{if(group.open){for(const other of rankingList.children){if(other!==group&&other.tagName==='DETAILS')other.open=false;}loadTeamMembers(row.team,members,group);}});});
   }catch(e){rankingStatus.textContent='ยังโหลดอันดับทีมไม่ได้ กรุณาติดต่อผู้ดูแล';}}
 async function readTeamSheet(sheetName) {
   const url=new URL('https://docs.google.com/spreadsheets/d/1pyi4CzPgF-pfInIK_BgbD4UfDolegvCst9RIPIGFXuY/gviz/tq');
@@ -160,7 +169,7 @@ async function loadTeamMembers(team,container,group) {
       const arrow=document.createElement('span');arrow.className='team-member-expand';arrow.textContent='⌄';arrow.setAttribute('aria-hidden','true');
       const history=document.createElement('div');history.className='team-member-history';
       memberSummary.append(position,details,amount,arrow);memberGroup.append(memberSummary,history);item.append(memberGroup);list.append(item);
-      memberGroup.addEventListener('toggle',()=>{if(memberGroup.open)renderMemberHistory(member.name,records,history);});});container.append(list);
+      memberGroup.addEventListener('toggle',()=>{if(memberGroup.open){for(const other of list.querySelectorAll('.team-member-group')){if(other!==memberGroup)other.open=false;}renderMemberHistory(member.name,records,history);}});});container.append(list);
   }catch(error){if(group.open&&group.memberRequest===request){status.textContent='โหลดรายชื่อสมาชิกไม่ได้ กรุณาตรวจสอบการเชื่อมต่อ';container.replaceChildren(status);}}
 }
 function renderMemberHistory(name,records,container) {
@@ -173,10 +182,11 @@ function renderMemberHistory(name,records,container) {
     const info=document.createElement('div');info.className='team-history-info';
     const amount=document.createElement('strong');const raw=Number(row[3]?.v);amount.textContent=`${Number.isFinite(raw)?raw.toLocaleString('th-TH'):String(row[3]?.f||'—')} kcal`;
     const date=document.createElement('span');date.textContent=String(row[0]?.f||'ไม่ระบุวันเวลา');
-    const team=document.createElement('span');team.textContent=String(row[2]?.v||'');info.append(amount,date,team);item.append(info);
+    const team=document.createElement('span');team.textContent=String(row[2]?.v||'');
+    const activity=document.createElement('span');activity.className='team-history-activity';activity.textContent=`กิจกรรม: ${String(row[5]?.v||'').trim()||'ไม่ระบุ'}`;info.append(amount,date,team,activity);item.append(info);
     let photo;try{photo=new URL(String(row[4]?.v||''));}catch(_){photo=null;}
     if(photo&&photo.protocol==='https:'&&photo.hostname==='drive.google.com'){
-      const link=document.createElement('a');link.className='history-photo';link.href=photo.href;link.target='_blank';link.rel='noopener noreferrer';link.dataset.photoDate=date.textContent;link.dataset.photoValue=amount.textContent;link.textContent='ดูภาพ';item.append(link);
+      const link=document.createElement('a');link.className='history-photo';link.href=photo.href;link.target='_blank';link.rel='noopener noreferrer';link.dataset.photoDate=date.textContent;link.dataset.photoValue=amount.textContent;link.dataset.photoActivity=activity.textContent;link.textContent='ดูภาพ';item.append(link);
     }else{const noPhoto=document.createElement('span');noPhoto.className='history-no-photo';noPhoto.textContent='ไม่มีภาพ';item.append(noPhoto);}
     container.append(item);
   });
