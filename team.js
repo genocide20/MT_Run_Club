@@ -184,10 +184,21 @@ async function loadTeamMembers(team,container,group) {
 }
 function renderMemberHistory(name,records,container) {
   container.replaceChildren();
-  const heading=document.createElement('p');heading.className='team-history-heading';heading.textContent='10 รายการล่าสุด';container.append(heading);
-  const rows=records.slice().reverse().filter(row=>String(row[1]?.v||'').trim()===name.trim()).slice(0,10);
+  const heading=document.createElement('p');heading.className='team-history-heading';heading.textContent='20 รายการล่าสุด';container.append(heading);
+  const rows=records.slice().reverse().filter(row=>String(row[1]?.v||'').trim()===name.trim()).slice(0,20);
   if(!rows.length){const empty=document.createElement('p');empty.className='team-members-status';empty.textContent=isTeamDemo?'ไม่มีข้อมูลตัวอย่าง':'ยังไม่มีประวัติการส่ง kcal';container.append(empty);return;}
-  rows.forEach(row=>{
+  const items=document.createElement('div');items.className='team-history-page';container.append(items);
+  const nav=document.createElement('nav');nav.className='history-pagination';nav.setAttribute('aria-label','หน้าประวัติการส่ง kcal');
+  const previous=document.createElement('button');previous.type='button';previous.textContent='← ก่อนหน้า';
+  const label=document.createElement('span');label.setAttribute('aria-live','polite');
+  const next=document.createElement('button');next.type='button';next.textContent='ถัดไป →';
+  const totalPages=Math.ceil(rows.length/10);let page=0;
+  if(totalPages>1){nav.append(previous,label,next);container.append(nav);}
+  previous.addEventListener('click',()=>{if(page>0){page--;renderPage();}});
+  next.addEventListener('click',()=>{if(page+1<totalPages){page++;renderPage();}});
+  function renderPage(){
+    items.replaceChildren();label.textContent=`หน้า ${page+1} / ${totalPages}`;previous.disabled=page===0;next.disabled=page+1===totalPages;
+    rows.slice(page*10,(page+1)*10).forEach(row=>{
     const item=document.createElement('div');item.className='team-history-row';
     const info=document.createElement('div');info.className='team-history-info';
     const amount=document.createElement('strong');const raw=Number(row[3]?.v);amount.textContent=`${Number.isFinite(raw)?raw.toLocaleString('th-TH'):String(row[3]?.f||'—')} kcal`;
@@ -198,8 +209,10 @@ function renderMemberHistory(name,records,container) {
     if(photo&&photo.protocol==='https:'&&photo.hostname==='drive.google.com'){
       const link=document.createElement('a');link.className='history-photo';link.href=photo.href;link.target='_blank';link.rel='noopener noreferrer';link.dataset.photoDate=date.textContent;link.dataset.photoValue=amount.textContent;link.dataset.photoActivity=activity.textContent;link.textContent='ดูภาพ';item.append(link);
     }else{const noPhoto=document.createElement('span');noPhoto.className='history-no-photo';noPhoto.textContent='ไม่มีภาพ';item.append(noPhoto);}
-    container.append(item);
-  });
+      items.append(item);
+    });
+  }
+  renderPage();
 }
 document.querySelector('#ranking-refresh').addEventListener('click',refreshRanking);
 if(isTeamDemo && teamToggle.getAttribute('aria-pressed')!=='true') teamToggle.click();
