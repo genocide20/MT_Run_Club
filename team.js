@@ -65,6 +65,26 @@ const teamRanking = document.querySelector('#team-ranking');
 const teamSubmitTab = document.querySelector('#team-submit-tab');
 const teamRankingTab = document.querySelector('#team-ranking-tab');
 const kcalRules = document.querySelector('#kcal-rules');
+const rulesPhotoDialog = document.createElement('dialog');
+rulesPhotoDialog.className = 'rules-photo-dialog';
+rulesPhotoDialog.setAttribute('aria-label', 'ภาพตัวอย่าง kcal');
+rulesPhotoDialog.innerHTML = '<div class="rules-photo-header"><strong>ภาพตัวอย่าง kcal</strong><button type="button" aria-label="ปิดภาพ">×</button></div><div class="rules-photo-content"><img alt=""><p></p></div>';
+document.body.append(rulesPhotoDialog);
+const rulesPhotoImage = rulesPhotoDialog.querySelector('img');
+const rulesPhotoCaption = rulesPhotoDialog.querySelector('p');
+rulesPhotoDialog.querySelector('button').addEventListener('click', () => rulesPhotoDialog.close());
+rulesPhotoDialog.addEventListener('click', event => { if (event.target === rulesPhotoDialog) rulesPhotoDialog.close(); });
+rulesPhotoDialog.addEventListener('close', () => { rulesPhotoImage.removeAttribute('src'); });
+document.querySelector('.rules-examples').addEventListener('click', event => {
+  const link = event.target.closest('a');
+  if (!link || event.defaultPrevented || event.button !== 0 || event.ctrlKey || event.metaKey || event.shiftKey || event.altKey || typeof rulesPhotoDialog.showModal !== 'function') return;
+  event.preventDefault();
+  const thumbnail = link.querySelector('img');
+  rulesPhotoImage.src = link.href;
+  rulesPhotoImage.alt = thumbnail.alt;
+  rulesPhotoCaption.textContent = link.closest('figure').querySelector('figcaption').textContent;
+  rulesPhotoDialog.showModal();
+});
 function openKcalRules() {
   if (kcalRules.open) return;
   if (typeof kcalRules.showModal === 'function') kcalRules.showModal();
