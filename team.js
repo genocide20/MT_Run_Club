@@ -64,6 +64,16 @@ const teamEntry = document.querySelector('#team-entry');
 const teamRanking = document.querySelector('#team-ranking');
 const teamSubmitTab = document.querySelector('#team-submit-tab');
 const teamRankingTab = document.querySelector('#team-ranking-tab');
+const kcalRules = document.querySelector('#kcal-rules');
+function openKcalRules() {
+  if (kcalRules.open) return;
+  if (typeof kcalRules.showModal === 'function') kcalRules.showModal();
+  else kcalRules.setAttribute('open','');
+}
+document.querySelector('#kcal-rules-close').addEventListener('click',()=>{
+  if (typeof kcalRules.close === 'function') kcalRules.close(); else kcalRules.removeAttribute('open');
+});
+document.querySelector('#kcal-rules-open').addEventListener('click',openKcalRules);
 const rankingStatus = document.querySelector('#ranking-status');
 const rankingList = document.querySelector('#ranking-list');
 const isTeamDemo = new URLSearchParams(location.search).get('preview') === 'team';
@@ -84,9 +94,9 @@ function showTeamPage(ranking) {
   teamSubmitTab.toggleAttribute('aria-current',!ranking); teamRankingTab.toggleAttribute('aria-current',ranking);
   if (ranking) refreshRanking();
 }
-teamSubmitTab.addEventListener('click',()=>showTeamPage(false));
+teamSubmitTab.addEventListener('click',()=>{const entering=teamEntry.hidden;showTeamPage(false);if(entering)openKcalRules();});
 teamRankingTab.addEventListener('click',()=>showTeamPage(true));
-window.addEventListener('team-mode',e=>{if(e.detail.team) showTeamPage(false);});
+window.addEventListener('team-mode',e=>{if(e.detail.team){showTeamPage(false);openKcalRules();}});
 teamSearch.addEventListener('input',()=>{
   clearTimeout(teamTimer); const id=++teamRequest; const q=teamSearch.value.trim();
   teamChoice=null; teamPerson.hidden=true; teamForm.hidden=true; teamResults.replaceChildren(); teamSaveStatus.textContent=''; resetTeamPhoto();
