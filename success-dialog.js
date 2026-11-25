@@ -5,8 +5,9 @@ successDialog.setAttribute('aria-describedby', 'success-detail');
 successDialog.innerHTML = '<div class="success-icon" aria-hidden="true">✓</div><p class="success-eyebrow">บันทึกสำเร็จ</p><h2 id="success-title">เรียบร้อยแล้ว!</h2><p id="success-detail"></p><button type="button" class="success-close">ตกลง</button>';
 document.body.append(successDialog);
 successDialog.querySelector('.success-close').addEventListener('click', () => successDialog.close());
-function showSuccess(message) {
+function showSuccess(message, awaitingApproval = false) {
   if (typeof successDialog.showModal !== 'function') { window.alert(message); return; }
+  successDialog.classList.toggle('awaiting-approval', awaitingApproval);
   successDialog.querySelector('#success-detail').textContent = message;
   if (!successDialog.open) successDialog.showModal();
 }
