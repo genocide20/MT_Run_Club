@@ -19,7 +19,7 @@ teamForm.addEventListener('reset', () => { queueMicrotask(updateActivitySuggesti
 const teamPhoto = document.querySelector('#team-photo');
 const teamPhotoPreview = document.querySelector('#team-photo-preview');
 const teamPhotoStatus = document.querySelector('#team-photo-status');
-let teamPhotoUrl = null, teamPhotoJob = 0, kcalEditVersion = 0;
+let teamPhotoUrl = null, teamPhotoJob = 0, kcalEditVersion = 0, kcalAiController = null;
 const teamKcal = document.querySelector('#team-kcal');
 const teamKcalError = document.querySelector('#team-kcal-error');
 function updateKcalValidity() {
@@ -28,7 +28,13 @@ function updateKcalValidity() {
   teamKcal.setCustomValidity(''); teamKcalError.textContent = message;
 }
 teamKcal.addEventListener('input', () => { kcalEditVersion++; updateKcalValidity(); });
-function resetTeamPhoto() { teamPhotoJob++; if(teamPhotoUrl) URL.revokeObjectURL(teamPhotoUrl); teamPhotoUrl=null; teamPhoto.value=''; teamPhotoPreview.hidden=true; teamPhotoPreview.removeAttribute('src'); teamPhotoStatus.textContent=''; }
+function resetTeamPhoto() { teamPhotoJob++; if(kcalAiController){kcalAiController.abort();kcalAiController=null;} if(teamPhotoUrl) URL.revokeObjectURL(teamPhotoUrl); teamPhotoUrl=null; teamPhoto.value=''; teamPhotoPreview.hidden=true; teamPhotoPreview.removeAttribute('src'); teamPhotoStatus.textContent=''; }
+async function readKcalWithGemini(file,controller){
+  const photo=await compressPhoto(file);if(controller.signal.aborted)throw new Error('cancelled');
+  const response=await fetch(window.SCRIPT_URL,{method:'POST',body:new URLSearchParams({action:'read-kcal-ai',photo}),signal:controller.signal});
+  const result=await response.json();if(!response.ok||!result.ok)throw new Error(result.reason||'unavailable');
+  if(!Number.isSafeInteger(result.kcal)||result.kcal<1||result.kcal>20000)throw new Error('unclear');return result.kcal;
+}
 function extractKcal(text) {
   const normalized = text.replace(/[๐-๙]/g, digit => String('๐๑๒๓๔๕๖๗๘๙'.indexOf(digit)));
   const number = '(?:\\d{1,3}(?:,\\d{3})+|\\d{1,5})(?:\\.\\d+)?';
@@ -43,21 +49,27 @@ function extractKcal(text) {
 }
 teamPhoto.addEventListener('change', async () => {
   const job=++teamPhotoJob;
+  if(kcalAiController)kcalAiController.abort();kcalAiController=new AbortController();const controller=kcalAiController;
   if(teamPhotoUrl) URL.revokeObjectURL(teamPhotoUrl);
   teamPhotoUrl=null;teamPhotoPreview.hidden=true;teamPhotoPreview.removeAttribute('src');teamPhotoStatus.textContent='';
   const file=teamPhoto.files[0];if(!file)return;
   if(!file.type.startsWith('image/') || file.size>15*1024*1024){teamPhotoStatus.textContent='กรุณาเลือกไฟล์รูปภาพขนาดไม่เกิน 15 MB';return;}
   teamPhotoUrl=URL.createObjectURL(file);teamPhotoPreview.src=teamPhotoUrl;teamPhotoPreview.hidden=false;
   const editVersion=kcalEditVersion, initialValue=teamKcal.value;
-  teamPhotoStatus.textContent='กำลังอ่านค่า kcal จากภาพ อาจใช้เวลาสักครู่…';
+  teamPhotoStatus.textContent='กำลังอ่านค่า kcal ด้วย Google AI…';
+  let fallbackReason='';
   try {
-    const result=await recognizeImageWithTimeout(file);if(job!==teamPhotoJob)return;
-    const values=extractKcal(result.data.text);
-    if(values.length===1 && kcalEditVersion===editVersion && !initialValue && !teamKcal.value){teamKcal.value=values[0];updateKcalValidity();teamPhotoStatus.textContent=`อ่านได้ ${values[0].toLocaleString('th-TH')} kcal กรุณาตรวจสอบก่อนบันทึก`;}
-    else if(values.length===1) teamPhotoStatus.textContent=`อ่านได้ ${values[0].toLocaleString('th-TH')} kcal กรุณาตรวจสอบค่าที่กรอก`;
-    else if(values.length>1) teamPhotoStatus.textContent=`พบหลายค่า (${values.map(value=>value.toLocaleString('th-TH')).join(', ')} kcal) กรุณากรอกค่าที่ต้องการ`;
-    else teamPhotoStatus.textContent='ไม่พบค่า kcal ที่ชัดเจนในภาพ กรุณากรอกด้วยตนเอง';
-  } catch(error) {if(job===teamPhotoJob)teamPhotoStatus.textContent=error.message==='OCR_TIMEOUT'?'อ่านภาพไม่ทันภายใน 6 วินาที กรุณากรอก kcal ด้วยตนเอง':'อ่านภาพไม่สำเร็จ กรุณาตรวจสอบอินเทอร์เน็ตหรือกรอก kcal ด้วยตนเอง';}
+    let values,source;
+    try {values=[await readKcalWithGemini(file,controller)];source='Google AI';}
+    catch(error){if(job!==teamPhotoJob)return;const reasons={quota:'Google จำกัดจำนวนคำขอ (อาจถึงโควตาหรือเรียกถี่เกินไป)',busy:'ระบบจำกัดจำนวนคำขอชั่วคราว',unclear:'Google AI ไม่พบค่าพลังงานจากกิจกรรมที่ชัดเจน',invalid:'รูปไม่ตรงรูปแบบที่ AI รองรับ',unavailable:'Google AI ใช้งานไม่ได้ชั่วคราว'};fallbackReason=reasons[error.message]||'เชื่อมต่อ Google AI ไม่สำเร็จ';teamPhotoStatus.textContent=`${fallbackReason} กำลังใช้ OCR แทน…`;const result=await recognizeImageWithTimeout(file);values=extractKcal(result.data.text);source='OCR';}
+    if(job!==teamPhotoJob)return;
+    const prefix=fallbackReason?fallbackReason+' · ':'';
+    if(values.length===1 && source==='OCR'){teamPhotoStatus.textContent=`${prefix}OCR พบ ${values[0].toLocaleString('th-TH')} kcal กรุณาตรวจสอบว่าเป็นพลังงานจากกิจกรรมที่ไม่รวม BMR แล้วกรอกด้วยตนเอง`;}
+    else if(values.length===1 && kcalEditVersion===editVersion && !initialValue && !teamKcal.value){teamKcal.value=values[0];updateKcalValidity();teamPhotoStatus.textContent=`${prefix}${source} อ่านได้ ${values[0].toLocaleString('th-TH')} kcal กรุณาตรวจสอบว่าไม่รวม BMR ก่อนบันทึก`;}
+    else if(values.length===1) teamPhotoStatus.textContent=`${prefix}${source} อ่านได้ ${values[0].toLocaleString('th-TH')} kcal แต่ไม่ได้เปลี่ยนค่าที่กรอก กรุณาตรวจสอบว่าไม่รวม BMR`;
+    else if(values.length>1) teamPhotoStatus.textContent=`${prefix}พบหลายค่า (${values.map(value=>value.toLocaleString('th-TH')).join(', ')} kcal) กรุณากรอกค่าจากกิจกรรมที่ไม่รวม BMR`;
+    else teamPhotoStatus.textContent=`${prefix}ไม่พบค่า kcal ที่ชัดเจนในภาพ กรุณากรอกด้วยตนเอง`;
+  } catch(error) {if(job===teamPhotoJob)teamPhotoStatus.textContent=(fallbackReason?fallbackReason+' · ':'')+(error.message==='OCR_TIMEOUT'?'OCR อ่านภาพไม่ทันภายใน 6 วินาที กรุณากรอก kcal ด้วยตนเอง':'อ่านภาพไม่สำเร็จ กรุณาตรวจสอบอินเทอร์เน็ตหรือกรอก kcal ด้วยตนเอง');}
 });
 const teamSaveStatus = document.querySelector('#team-save-status');
 const teamEntry = document.querySelector('#team-entry');

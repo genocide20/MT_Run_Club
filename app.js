@@ -79,6 +79,8 @@ const ocrStatus = document.querySelector('#ocr-status');
 let imageUrl = null;
 let imageJob = 0;
 let ocrLibrary;
+let distanceEditVersion = 0, distanceAiController = null;
+form.elements.distance.addEventListener('input', () => { distanceEditVersion++; });
 async function compressPhoto(file) {
   if (!file.type.startsWith('image/') || file.size > 15 * 1024 * 1024) throw new Error('Invalid image');
   const url = URL.createObjectURL(file);
@@ -101,9 +103,19 @@ async function compressPhoto(file) {
 }
 function resetPhoto() {
   imageJob++;
+  if (distanceAiController) { distanceAiController.abort(); distanceAiController = null; }
   screenshot.value = '';
   if (imageUrl) URL.revokeObjectURL(imageUrl);
   imageUrl = null; preview.hidden = true; preview.removeAttribute('src'); ocrStatus.textContent = '';
+}
+async function readDistanceWithGemini(file, controller) {
+  const photo=await compressPhoto(file);
+  if(controller.signal.aborted) throw new Error('AI_CANCELLED');
+  const response=await fetch(window.SCRIPT_URL,{method:'POST',body:new URLSearchParams({action:'read-distance-ai',photo}),signal:controller.signal});
+  const result=await response.json();
+  if(!response.ok || !result.ok) throw new Error(result.reason || 'unavailable');
+  if(typeof result.distance!=='number' || !Number.isFinite(result.distance) || result.distance<=0 || result.distance>1000 || Math.abs(result.distance*100-Math.round(result.distance*100))>0.000001) throw new Error('unclear');
+  return result.distance;
 }
 function loadOcrLibrary() {
   if (window.Tesseract) return Promise.resolve(window.Tesseract);
@@ -150,6 +162,9 @@ function extractDistance(text) {
 }
 screenshot.addEventListener('change', async () => {
   const job = ++imageJob;
+  if (distanceAiController) distanceAiController.abort();
+  distanceAiController = new AbortController();
+  const controller = distanceAiController;
   const file = screenshot.files[0];
   if (imageUrl) URL.revokeObjectURL(imageUrl);
   preview.hidden = true; preview.removeAttribute('src'); ocrStatus.textContent = '';
@@ -157,24 +172,33 @@ screenshot.addEventListener('change', async () => {
   if (!file.type.startsWith('image/')) { ocrStatus.textContent = 'กรุณาเลือกไฟล์รูปภาพ'; return; }
   if (file.size > 15 * 1024 * 1024) { ocrStatus.textContent = 'รูปภาพมีขนาดเกิน 15 MB กรุณาเลือกรูปที่เล็กกว่า'; return; }
   imageUrl = URL.createObjectURL(file); preview.src = imageUrl; preview.hidden = false;
-  ocrStatus.textContent = 'กำลังอ่านระยะทางจากภาพ อาจใช้เวลาสักครู่…';
-  const originalValue = form.elements.distance.value;
+  ocrStatus.textContent = 'กำลังอ่านระยะทางด้วย Google AI…';
+  const originalValue = form.elements.distance.value, editVersion = distanceEditVersion;
+  let fallbackReason='';
   try {
-    const result = await recognizeImageWithTimeout(file);
+    let values, source;
+    try {const distance=await readDistanceWithGemini(file,controller);values=[distance];source='Google AI';}
+    catch (error) {
+      if(job!==imageJob)return;
+      const reasons={quota:'Google จำกัดจำนวนคำขอ (อาจถึงโควตาหรือเรียกถี่เกินไป)',busy:'ระบบจำกัดจำนวนคำขอชั่วคราว',unclear:'Google AI ไม่พบค่าระยะทางที่ชัดเจน',invalid:'รูปไม่ตรงรูปแบบที่ AI รองรับ',unavailable:'Google AI ใช้งานไม่ได้ชั่วคราว'};
+      fallbackReason=reasons[error.message]||'เชื่อมต่อ Google AI ไม่สำเร็จ';
+      ocrStatus.textContent=`${fallbackReason} กำลังใช้ OCR แทน…`;
+      const fallback=await recognizeImageWithTimeout(file);
+      values=extractDistance(fallback.data.text);source='OCR';
+    }
     if (job !== imageJob) return;
-    const values = extractDistance(result.data.text);
-    if (values.length === 1 && form.elements.distance.value === originalValue) {
+    if (values.length === 1 && !originalValue && distanceEditVersion===editVersion && !form.elements.distance.value) {
       form.elements.distance.value = values[0];
-      ocrStatus.textContent = `อ่านได้ ${values[0]} กม. กรุณาตรวจสอบก่อนบันทึก`;
+      ocrStatus.textContent = `${fallbackReason ? fallbackReason+' · ' : ''}${source} อ่านได้ ${values[0]} กม. กรุณาตรวจสอบก่อนบันทึก`;
     } else if (values.length > 1) {
-      ocrStatus.textContent = `พบหลายระยะ (${values.join(', ')} กม.) กรุณากรอกระยะที่ต้องการด้วยตนเอง`;
+      ocrStatus.textContent = `${fallbackReason ? fallbackReason+' · ' : ''}พบหลายระยะ (${values.join(', ')} กม.) กรุณากรอกระยะที่ต้องการด้วยตนเอง`;
     } else if (values.length === 1) {
-      ocrStatus.textContent = `อ่านได้ ${values[0]} กม. แต่ไม่ได้เปลี่ยนค่าที่คุณกำลังกรอก กรุณาตรวจสอบ`;
+      ocrStatus.textContent = `${fallbackReason ? fallbackReason+' · ' : ''}${source} อ่านได้ ${values[0]} กม. แต่ไม่ได้เปลี่ยนค่าที่คุณกำลังกรอก กรุณาตรวจสอบ`;
     } else {
-      ocrStatus.textContent = 'ไม่พบระยะทางหน่วย กม. หรือ km ในภาพ กรุณากรอกระยะทางด้วยตนเอง';
+      ocrStatus.textContent = `${fallbackReason ? fallbackReason+' · ' : ''}ไม่พบระยะทางหน่วย กม. หรือ km ในภาพ กรุณากรอกระยะทางด้วยตนเอง`;
     }
   } catch (error) {
-    if (job === imageJob) ocrStatus.textContent = error.message === 'OCR_TIMEOUT' ? 'อ่านภาพไม่ทันภายใน 6 วินาที กรุณากรอกระยะทางด้วยตนเอง' : 'อ่านภาพไม่สำเร็จ กรุณาตรวจสอบอินเทอร์เน็ตหรือกรอกระยะทางด้วยตนเอง';
+    if (job === imageJob) ocrStatus.textContent = `${fallbackReason ? fallbackReason+' · ' : ''}${error.message === 'OCR_TIMEOUT' ? 'OCR อ่านภาพไม่ทันภายใน 6 วินาที กรุณากรอกระยะทางด้วยตนเอง' : 'อ่านภาพไม่สำเร็จ กรุณาตรวจสอบอินเทอร์เน็ตหรือกรอกระยะทางด้วยตนเอง'}`;
   }
 });
 
